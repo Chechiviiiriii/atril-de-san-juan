@@ -87,11 +87,23 @@ def _misma_altura(p1: pitch.Pitch, p2: pitch.Pitch) -> bool:
 
 
 def _altura_previa_existe(elemento, p: pitch.Pitch) -> bool:
-    """True si el elemento previo (NotRest) tiene una nota con la misma altura que p."""
-    from music21 import chord as chord_mod
+    """True si la nota ligada debe llevar el punto en vez del nombre: la figura
+    inmediatamente anterior es una nota con la misma altura que p, sin nada
+    en medio y dentro del mismo compás.
 
-    prev = elemento.previous("NotRest")
-    if prev is None:
+    Regla del usuario: si hay algo entre las dos notas (un silencio o una barra
+    de compás), se escribe el nombre. Además, una ligadura de unión no puede
+    saltar un silencio ni salir de una nota en staccato; si el OMR la ve así,
+    en realidad era una ligadura de expresión.
+    """
+    from music21 import articulations, chord as chord_mod
+
+    prev = elemento.previous("GeneralNote")
+    if prev is None or isinstance(prev, note.Rest):
+        return False
+    if prev.getContextByClass("Measure") is not elemento.getContextByClass("Measure"):
+        return False
+    if any(isinstance(a, articulations.Staccato) for a in prev.articulations):
         return False
     if isinstance(prev, chord_mod.Chord):
         return any(_misma_altura(n.pitch, p) for n in prev.notes)
@@ -374,6 +386,23 @@ def _numero_compas(elemento) -> int:
 # textos_por_nota
 # ---------------------------------------------------------------------------
 
+def texto_de_nota(
+    elemento,
+    n: note.Note,
+    marca_ligada: Optional[str] = MARCA_LIGADA,
+) -> Optional[str]:
+    """Texto que se escribe bajo la nota ``n`` (que pertenece a ``elemento``,
+    una nota o un acorde): su nombre, o ``marca_ligada`` si es la continuación
+    de una ligadura justo detrás y en el mismo compás. ``None`` si no se escribe nada.
+
+    Única fuente de la regla de ligaduras: la usan tanto las letras como la
+    superposición sobre el PDF.
+    """
+    if _tie_type(n) in ("stop", "continue") and _altura_previa_existe(elemento, n.pitch):
+        return marca_ligada
+    return nombre_nota(n.pitch)
+
+
 def textos_por_nota(
     score: stream.Score,
     marca_ligada: Optional[str] = MARCA_LIGADA,
@@ -386,24 +415,15 @@ def textos_por_nota(
     - Acordes → de la más aguda a la más grave.
     - ``marca_ligada=None`` → las notas ligadas se omiten de la lista.
     """
-    from music21 import chord as chord_mod
-
     resultado: list[NotaTexto] = []
     for elemento in score.recurse().notes:
         notas = notas_a_nombrar(elemento)
         if not notas:
             continue
         for n in notas:
-            t = _tie_type(n)
-            if t in ("stop", "continue"):
-                if _altura_previa_existe(elemento, n.pitch):
-                    if marca_ligada is None:
-                        continue
-                    texto: str = marca_ligada
-                else:
-                    texto = nombre_nota(n.pitch)
-            else:
-                texto = nombre_nota(n.pitch)
+            texto = texto_de_nota(elemento, n, marca_ligada)
+            if texto is None:
+                continue
             compas = _numero_compas(elemento)
             resultado.append(NotaTexto(
                 elemento=elemento,

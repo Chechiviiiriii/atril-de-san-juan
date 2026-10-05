@@ -263,24 +263,42 @@ def test_claves_no_afectan_nombres():
 # Test 6: Ligaduras — ahora reciben MARCA_LIGADA
 # ===========================================================================
 
-def test_ligaduras_a_traves_de_barra():
-    # Nota ligada cruzando la barra: primera -> nombre, segunda -> MARCA_LIGADA
+def test_ligadura_dentro_del_compas():
+    # Misma nota justo detrás y en el mismo compás: primera -> nombre, segunda -> MARCA_LIGADA
+    compas = _nota_xml("C", 4, tie_start=True) + _nota_xml("C", 4, tie_stop=True)
+    score = construir_score(compases=[compas])
+    resumen = anotar_partitura(score)
+    letras = _letras_del_score(score)
+    assert letras == ["Do", MARCA_LIGADA]
+    assert resumen.ligadas_marcadas == 1
+
+
+def test_ligaduras_a_traves_de_barra_llevan_nombre():
+    # Regla del usuario: si hay una barra de compás en medio, se escribe el nombre
     compas1 = _nota_xml("C", 4, tie_start=True)
     compas2 = _nota_xml("C", 4, tie_stop=True)
     score = construir_score(compases=[compas1, compas2])
     resumen = anotar_partitura(score)
-    letras = _letras_del_score(score)
-    assert letras[0] == "Do"
-    assert letras[1] == MARCA_LIGADA
-    assert resumen.ligadas_marcadas == 1
+    assert _letras_del_score(score) == ["Do", "Do"]
+    assert resumen.ligadas_marcadas == 0
+
+
+def test_ligadura_con_silencio_en_medio_lleva_nombre():
+    # Una ligadura no puede saltar un silencio: el OMR confundió una ligadura de expresión
+    compas = (_nota_xml("D", 4, tie_start=True) + _silencio_xml()
+              + _nota_xml("D", 4, tie_stop=True))
+    score = construir_score(compases=[compas])
+    resumen = anotar_partitura(score)
+    assert _letras_del_score(score) == ["Re", "Re"]
+    assert resumen.ligadas_marcadas == 0
 
 
 def test_cadena_ligaduras():
-    # start / (start+stop = continue) / stop -> nombre, ·, ·
-    compas1 = _nota_xml("G", 4, tie_start=True)
-    compas2 = _nota_xml("G", 4, tie_stop=True, tie_start=True)  # continue
-    compas3 = _nota_xml("G", 4, tie_stop=True)
-    score = construir_score(compases=[compas1, compas2, compas3])
+    # start / (start+stop = continue) / stop en el mismo compás -> nombre, ·, ·
+    compas = (_nota_xml("G", 4, tie_start=True)
+              + _nota_xml("G", 4, tie_stop=True, tie_start=True)  # continue
+              + _nota_xml("G", 4, tie_stop=True))
+    score = construir_score(compases=[compas])
     resumen = anotar_partitura(score)
     letras = _letras_del_score(score)
     assert letras[0] == "Sol"
@@ -291,9 +309,8 @@ def test_cadena_ligaduras():
 
 def test_ligadura_marca_none():
     # Con marca_ligada=None las notas ligadas no reciben nada
-    compas1 = _nota_xml("C", 4, tie_start=True)
-    compas2 = _nota_xml("C", 4, tie_stop=True)
-    score = construir_score(compases=[compas1, compas2])
+    compas = _nota_xml("C", 4, tie_start=True) + _nota_xml("C", 4, tie_stop=True)
+    score = construir_score(compases=[compas])
     resumen = anotar_partitura(score, marca_ligada=None)
     letras = _letras_del_score(score)
     assert letras == ["Do"]
@@ -340,9 +357,10 @@ def test_acorde_simple():
 def test_acorde_con_nota_ligada():
     # Acorde: Sol (libre) + Mib (tie stop) -> Sol recibe nombre, Mib recibe MARCA_LIGADA
     # Necesitamos un acorde previo para que la ligadura sea "real" (misma altura)
+    # (en el mismo compás: con una barra en medio se escribiría el nombre)
     acorde_previo = _acorde_xml([("G", 4), ("E", 4, -1, "", True, False)])
     acorde_actual = _acorde_xml([("G", 4), ("E", 4, -1, "", False, True)])
-    score = construir_score(compases=[acorde_previo, acorde_actual])
+    score = construir_score(compases=[acorde_previo + acorde_actual])
     anotar_partitura(score)
 
     letras_compas2: list[str] = []

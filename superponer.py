@@ -247,6 +247,43 @@ def _es_alt_smufl(codepoint: int) -> Optional[int]:
 # Detección de pentagramas
 # ---------------------------------------------------------------------------
 
+ESPACIO_MIN_PENTAGRAMA = 2.0    # pt entre líneas consecutivas
+ESPACIO_MAX_PENTAGRAMA = 12.0
+TOLERANCIA_LINEA = 0.35         # pt de desviación admitida respecto al espaciado regular
+
+
+def _agrupar_lineas_equiespaciadas(ys: list[float]) -> list[list[float]]:
+    """Busca grupos de 5 alturas con separación constante (un pentagrama).
+
+    Ignora líneas sueltas intercaladas (p. ej. barras de notas o líneas
+    adicionales largas) que romperían una agrupación de 5 en 5 consecutivas.
+    """
+    grupos: list[list[float]] = []
+    i = 0
+    while i <= len(ys) - 5:
+        grupo = None
+        for j in range(i + 1, min(i + 5, len(ys))):
+            espacio = ys[j] - ys[i]
+            if not ESPACIO_MIN_PENTAGRAMA <= espacio <= ESPACIO_MAX_PENTAGRAMA:
+                continue
+            candidato = [ys[i]]
+            for k in range(1, 5):
+                objetivo = ys[i] + k * espacio
+                cercana = min(ys, key=lambda y: abs(y - objetivo))
+                if abs(cercana - objetivo) > TOLERANCIA_LINEA:
+                    break
+                candidato.append(cercana)
+            if len(candidato) == 5:
+                grupo = candidato
+                break
+        if grupo is None:
+            i += 1
+            continue
+        grupos.append(grupo)
+        i = ys.index(grupo[-1]) + 1
+    return grupos
+
+
 def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama]:
     """Detecta grupos de 5 líneas horizontales largas en la página.
 
@@ -273,16 +310,7 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
         if lon > page.rect.width * 0.35
     )
 
-    grupos: list[list[float]] = []
-    grupo_actual: list[float] = []
-    for y in ys:
-        if grupo_actual and (len(grupo_actual) == 5 or y - grupo_actual[-1] > 12):
-            if len(grupo_actual) == 5:
-                grupos.append(grupo_actual)
-            grupo_actual = []
-        grupo_actual.append(y)
-    if len(grupo_actual) == 5:
-        grupos.append(grupo_actual)
+    grupos = _agrupar_lineas_equiespaciadas(ys)
 
     resultado: list[Pentagrama] = []
     for g in grupos:
@@ -632,7 +660,7 @@ def _notas_omr_con_ref(partitura) -> list[list[tuple[int, str, object]]]:
     """
     from music21 import layout
     from music21 import clef as m21clef
-    from nombres import nombre_nota, MARCA_LIGADA
+    from nombres import notas_a_nombrar, texto_de_nota
 
     sistemas: list[list[tuple[int, str, object]]] = []
     actual: list[tuple[int, str, object]] = []
@@ -641,23 +669,11 @@ def _notas_omr_con_ref(partitura) -> list[list[tuple[int, str, object]]]:
         if m.getElementsByClass(layout.SystemLayout) and actual:
             sistemas.append(actual)
             actual = []
-        for n in m.recurse().notes:
-            if n.duration.isGrace:
-                continue
-            cl = n.getContextByClass(m21clef.Clef) or m21clef.BassClef()
-            ligada = n.tie is not None and n.tie.type in ("stop", "continue")
-            prev = n.previous("NotRest")
-            for p in sorted(n.pitches, reverse=True):
-                paso = p.diatonicNoteNum - cl.lowestLine
-                igual = (
-                    prev is not None
-                    and any(
-                        q.nameWithOctave == p.nameWithOctave
-                        for q in prev.pitches
-                    )
-                )
-                texto = MARCA_LIGADA if (ligada and igual) else nombre_nota(p)
-                actual.append((paso, texto, n))
+        for elemento in m.recurse().notes:
+            cl = elemento.getContextByClass(m21clef.Clef) or m21clef.BassClef()
+            for nota in notas_a_nombrar(elemento):   # adornos fuera; acordes de agudo a grave
+                paso = nota.pitch.diatonicNoteNum - cl.lowestLine
+                actual.append((paso, texto_de_nota(elemento, nota), elemento))
 
     if actual:
         sistemas.append(actual)
@@ -1011,6 +1027,48 @@ def _colocar_en_pagina(
 # Funciones de la API pública
 # ---------------------------------------------------------------------------
 
+SILENCIOS_CLASICOS = set("Œ‰≈Ó∑®")            # negra, corchea, semicorchea, blanca, compases, fusa
+SILENCIOS_SMUFL = range(0xE4E0, 0xE4F0)
+
+
+def _cabeza_anterior(heads: list[Cabeza], i: int) -> Optional[int]:
+    """Índice de la cabeza anterior en el mismo pentagrama (saltando las del mismo acorde)."""
+    h = heads[i]
+    for k in range(i - 1, -1, -1):
+        if heads[k].pent != h.pent:
+            return None
+        if heads[k].x < h.x - 1.0:
+            return k
+    return None
+
+
+def _hay_silencio_entre(
+    chars: list[tuple[int, str, float, float]], pent: Pentagrama, x0: float, x1: float
+) -> bool:
+    """True si hay un silencio dibujado en el pentagrama entre las x indicadas."""
+    margen = 2 * pent.espacio
+    for codepoint, fuente, ox, oy in chars:
+        if not (x0 < ox < x1 and pent.arriba - margen <= oy <= pent.abajo + margen):
+            continue
+        if codepoint in SILENCIOS_SMUFL:
+            return True
+        if _es_fuente_musica_clasica(fuente) and chr(codepoint) in SILENCIOS_CLASICOS:
+            return True
+    return False
+
+
+def _nombre_por_paso(elemento, paso: int) -> Optional[str]:
+    """Nombre de la nota de ``elemento`` (nota o acorde) que está en ese paso del pentagrama."""
+    from music21 import clef as m21clef
+    from nombres import nombre_nota
+
+    cl = elemento.getContextByClass(m21clef.Clef) or m21clef.BassClef()
+    for p in elemento.pitches:
+        if p.diatonicNoteNum - cl.lowestLine == paso:
+            return nombre_nota(p)
+    return None
+
+
 def analizar(pdf: Path, partitura) -> Analisis:
     """Detecta pentagramas y cabezas, alinea con Audiveris e infiere nombres.
 
@@ -1102,6 +1160,20 @@ def analizar(pdf: Path, partitura) -> Analisis:
             textos[i] = nombre_nota(p)
             estados[i] = "dudosa"
             motivos[i] = "alteración distinta"
+
+    # Paso 4b: una ligadura de unión no puede saltar un silencio dibujado en el PDF
+    # (Audiveris a veces se salta el silencio y toma la ligadura de expresión por una de unión)
+    for i, h in enumerate(heads):
+        if textos[i] != MARCA_LIGADA or ref[i] is None:
+            continue
+        anterior = _cabeza_anterior(heads, i)
+        if anterior is None:
+            continue
+        pent = pents[h.pent]
+        if _hay_silencio_entre(chars[pent.pagina], pent, heads[anterior].x, h.x):
+            nombre = _nombre_por_paso(ref[i], h.paso)
+            if nombre is not None:
+                textos[i] = nombre
 
     # Paso 5: detectar armadura PDF y comparar con Audiveris
     arm_pdf = _detectar_armadura_por_sistema(doc, pents, heads, chars)

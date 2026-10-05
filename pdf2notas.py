@@ -280,6 +280,33 @@ def _procesar_un_pdf_redibujar(
         _unir_pdfs(pdfs_movimientos, salida)
 
 
+def _esta_bloqueado(ruta: Path) -> bool:
+    """True si el archivo existe y otro programa lo tiene abierto (p. ej. un visor de PDF)."""
+    if not ruta.exists():
+        return False
+    try:
+        with ruta.open("ab"):
+            return False
+    except OSError:
+        return True
+
+
+def _salida_disponible(salida: Path) -> Path:
+    """Devuelve ``salida`` o, si está abierta en otro programa, ``<nombre> (2).pdf``, ``(3)``…"""
+    if not _esta_bloqueado(salida):
+        return salida
+    n = 2
+    while True:
+        alternativa = salida.with_name(f"{salida.stem} ({n}){salida.suffix}")
+        if not _esta_bloqueado(alternativa):
+            print(
+                f"⚠ '{salida.name}' está abierto en otro programa; "
+                f"se guardará como '{alternativa.name}'."
+            )
+            return alternativa
+        n += 1
+
+
 def _procesar_un_pdf(
     pdf: Path,
     salida: Path,
@@ -519,7 +546,7 @@ def main(argv: list[str] | None = None) -> int:
     fallidos: list[tuple[Path, str]] = []
 
     for pdf in pdfs:
-        salida = (
+        salida = _salida_disponible(
             args.salida if (args.salida and len(pdfs) == 1)
             else _nombre_salida(pdf)
         )

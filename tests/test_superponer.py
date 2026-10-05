@@ -315,3 +315,30 @@ def test_comparar_victoria_95_pct(victoria_partitura, tmp_path):
         f"(gen={resultado['n_generado']}, ref={resultado['n_referencia']})\n"
         f"Primeras diferencias:\n" + "\n".join(resultado["diferencias"][:10])
     )
+
+
+# ---------------------------------------------------------------------------
+# Pentagramas con barras de notas intercaladas y ligaduras que saltan silencios
+# ---------------------------------------------------------------------------
+
+def test_agrupar_lineas_ignora_barras_intercaladas():
+    # Las barras de semicorchea a la misma altura no deben colarse como línea del pentagrama
+    from superponer import _agrupar_lineas_equiespaciadas
+    lineas = [139.3, 143.2, 147.1, 150.0, 151.0, 152.0, 153.0, 154.9]
+    assert _agrupar_lineas_equiespaciadas(lineas) == [[139.3, 143.2, 147.1, 151.0, 154.9]]
+
+
+def test_agrupar_lineas_varios_pentagramas():
+    from superponer import _agrupar_lineas_equiespaciadas
+    lineas = [100.0, 104.0, 108.0, 112.0, 116.0, 160.0, 164.0, 168.0, 172.0, 176.0]
+    assert len(_agrupar_lineas_equiespaciadas(lineas)) == 2
+
+
+def test_silencio_entre_cabezas():
+    from superponer import Pentagrama, _hay_silencio_entre
+    pent = Pentagrama(pagina=0, arriba=139.3, abajo=154.9, x0=50, x1=800)
+    corchea = [(ord("‰"), "OpusStd", 136.4, 147.1)]
+    assert _hay_silencio_entre(corchea, pent, 126.9, 145.7)
+    assert not _hay_silencio_entre(corchea, pent, 145.7, 160.0)
+    # Una "‰" en una fuente de texto no es un silencio
+    assert not _hay_silencio_entre([(ord("‰"), "PalatinoLinotype-Roman", 136.4, 147.1)], pent, 126.9, 145.7)
