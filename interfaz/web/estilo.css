@@ -1,0 +1,941 @@
+/* ============================================================
+   pdf2notas — Hoja de estilo principal
+   Agrupación Musical Stmo. Cristo de la Salud — Alcalá la Real
+   ============================================================ */
+
+/* ---- Tokens de color ---------------------------------------- */
+:root {
+    --fondo:          #0f0f10;
+    --fondo-card:     #1e1e21;
+    --fondo-card-alt: #232327;
+    --borde:          rgba(255, 255, 255, 0.08);
+    --borde-fuerte:   rgba(255, 255, 255, 0.14);
+
+    --texto:          #f2f2f2;
+    --texto-2:        #b5b5b8;
+    --texto-3:        #7d7d82;
+
+    --primario:       #ffffff;
+    --primario-texto: #0f0f10;
+
+    --amber:          #f59e0b;
+    --rojo:           #e5484d;
+    --verde:          #22c55e;
+    --azul:           #4e86f5;
+
+    --radio:          12px;
+    --radio-sm:       8px;
+    --sombra-card:    0 2px 16px rgba(0,0,0,0.45);
+    --sombra-pagina:  0 4px 32px rgba(0,0,0,0.7);
+
+    --fuente-titulo:  "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --fuente-cuerpo:  "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --fuente-nota:    "Times New Roman", Times, serif;
+
+    --cabecera-h:     72px;
+    --barra-lateral-w: 320px;
+}
+
+/* ---- Reset ligero ------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; scroll-behavior: smooth; }
+body {
+    height: 100%;
+    background-color: var(--fondo);
+    color: var(--texto);
+    font-family: var(--fuente-cuerpo);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;          /* el scroll es por sección */
+}
+
+/* Textura sutil con SVG inline */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.035;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E") repeat;
+}
+
+/* ============================================================
+   CABECERA
+   ============================================================ */
+.cabecera {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--cabecera-h);
+    z-index: 100;
+    background: rgba(10,10,11,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--borde);
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+}
+
+.cabecera-interior {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Escudo */
+.escudo-cabecera {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+    transition: opacity 150ms;
+}
+.escudo-cabecera-blanco {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.86);
+    padding: 4px;
+}
+
+.cabecera-marca {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    flex-shrink: 0;
+}
+.nombre-app {
+    font-family: var(--fuente-titulo);
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--texto);
+}
+.subtitulo-banda {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    font-weight: 400;
+}
+
+/* Indicador de pasos */
+.indicador-pasos {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--texto-3);
+}
+.paso-ind {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: color 200ms;
+}
+.paso-num {
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+.paso-nombre { font-weight: 400; }
+.paso-ind.activo   { color: var(--texto); }
+.paso-ind.activo .paso-num { color: var(--primario); }
+.paso-ind.hecho    { color: var(--texto-2); }
+.paso-sep { color: var(--texto-3); user-select: none; }
+
+/* ============================================================
+   CONTENEDOR PRINCIPAL
+   ============================================================ */
+.app-main {
+    margin-top: var(--cabecera-h);
+    height: calc(100vh - var(--cabecera-h));
+    position: relative;
+}
+
+/* Pasos: se muestran/ocultan */
+.paso {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+}
+.paso.activo { display: flex; flex-direction: column; }
+
+/* ============================================================
+   PASO 1 — SUBIR
+   ============================================================ */
+#paso-subir {
+    position: relative;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fondo con la imagen de cabecera */
+.hero-imagen {
+    position: absolute;
+    inset: 0;
+    background: url('img/cabecera.jpg') center / cover no-repeat;
+    z-index: 0;
+}
+.hero-oscuro {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to right,
+        rgba(10,10,11,0.40) 0%,
+        rgba(10,10,11,0.72) 45%,
+        rgba(10,10,11,0.92) 65%,
+        rgba(10,10,11,0.97) 100%
+    );
+    z-index: 1;
+}
+
+.paso-subir-contenido {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2.5rem 1.5rem;
+    max-width: 560px;
+    width: 100%;
+}
+
+.escudo-grande {
+    height: 96px;
+    width: auto;
+    object-fit: contain;
+    opacity: 0.92;
+}
+.escudo-grande-blanco {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.88);
+    padding: 8px;
+}
+
+/* ---- Encabezado de la banda (paso 1) ---- */
+.cabecera-banda {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+.banda-titulo-1 {
+    font-family: var(--fuente-titulo);
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto);
+}
+.banda-titulo-2 {
+    font-family: var(--fuente-titulo);
+    font-weight: 400;
+    font-size: 0.9rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--texto-2);
+}
+.banda-linea-datos {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    margin-top: 0.4rem;
+}
+.banda-linea-datos::before,
+.banda-linea-datos::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 1px;
+    background: var(--texto-3);
+    opacity: 0.5;
+}
+.icono-clave {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.7;
+}
+
+/* ---- Zona de carga ---- */
+.tarjeta-subir {
+    background: var(--fondo-card);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 2rem 2.5rem;
+    width: 100%;
+    box-shadow: var(--sombra-card);
+}
+
+.zona-carga {
+    border: 2px dashed var(--borde-fuerte);
+    border-radius: var(--radio-sm);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    transition: background 150ms, border-color 150ms;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+.zona-carga:hover,
+.zona-carga.arrastrando {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.3);
+}
+
+.icono-partitura {
+    width: 48px;
+    height: 48px;
+    color: var(--texto-3);
+    opacity: 0.7;
+}
+.zona-carga-titulo {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--texto);
+}
+.zona-carga-o {
+    font-size: 0.82rem;
+    color: var(--texto-3);
+}
+.texto-pie {
+    font-size: 0.75rem;
+    color: var(--texto-3);
+    margin-top: 0.25rem;
+}
+
+/* ---- Estado: procesando ---- */
+.procesando-contenido {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    text-align: center;
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--borde-fuerte);
+    border-top-color: var(--primario);
+    border-radius: 50%;
+    animation: girar 0.8s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+.fase-texto {
+    font-size: 0.9rem;
+    color: var(--texto-2);
+    min-height: 1.5em;
+}
+.procesando-nota {
+    font-size: 0.75rem;
+    color: var(--texto-3);
+}
+
+/* ---- Estado: error ---- */
+.error-contenido {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    text-align: center;
+}
+.icono-error {
+    font-size: 2.5rem;
+    color: var(--rojo);
+}
+.error-mensaje {
+    font-size: 0.9rem;
+    color: var(--texto-2);
+    white-space: pre-wrap;
+    max-width: 100%;
+    word-break: break-word;
+}
+
+/* ============================================================
+   BOTONES
+   ============================================================ */
+.btn-primario {
+    background: var(--primario);
+    color: var(--primario-texto);
+    border: none;
+    border-radius: var(--radio-sm);
+    padding: 0.6rem 1.4rem;
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 150ms, transform 80ms;
+    white-space: nowrap;
+}
+.btn-primario:hover  { opacity: 0.9; }
+.btn-primario:active { transform: scale(0.97); }
+.btn-primario:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.btn-primario:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secundario {
+    background: transparent;
+    color: var(--texto-2);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio-sm);
+    padding: 0.6rem 1.4rem;
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 150ms, border-color 150ms;
+    white-space: nowrap;
+}
+.btn-secundario:hover  { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
+.btn-secundario:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.btn-secundario:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-icono {
+    background: transparent;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    color: var(--texto-2);
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 150ms;
+    font-size: 1rem;
+    line-height: 1;
+}
+.btn-icono:hover { background: rgba(255,255,255,0.08); }
+
+.enlace-neutro {
+    background: none;
+    border: none;
+    color: var(--texto-3);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-family: var(--fuente-cuerpo);
+    transition: color 150ms;
+}
+.enlace-neutro:hover { color: var(--texto-2); }
+
+/* ============================================================
+   PASO 2 — REVISAR
+   ============================================================ */
+#paso-revisar {
+    flex-direction: row;
+    overflow: hidden;
+}
+
+.area-revision {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ---- Barra de zoom ---- */
+.barra-herramientas {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.5rem;
+    border-bottom: 1px solid var(--borde);
+    background: rgba(10,10,11,0.7);
+}
+.barra-herramientas .separador-v {
+    width: 1px;
+    height: 20px;
+    background: var(--borde-fuerte);
+    margin: 0 0.25rem;
+}
+.zoom-texto {
+    font-size: 0.78rem;
+    color: var(--texto-2);
+    min-width: 42px;
+    text-align: center;
+}
+
+/* ---- Área de páginas ---- */
+.scroll-paginas {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 2rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+    background: #111113;
+}
+
+.pagina-envoltorio {
+    position: relative;
+    display: inline-block;
+    box-shadow: var(--sombra-pagina);
+    transition: width 150ms;
+}
+
+.pagina-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+}
+
+.notas-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;   /* las notas habilitan eventos individualmente */
+    overflow: hidden;
+}
+
+/* ---- Nombre de nota en el overlay ---- */
+.nota-nombre {
+    position: absolute;
+    font-family: var(--fuente-nota);
+    font-size: 9.5px;       /* se sobreescribe por JS */
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: all;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0 1px;
+    transition: background 100ms;
+}
+.nota-nombre:hover {
+    background: rgba(255,255,255,0.18);
+}
+.nota-nombre.estado-ok {
+    color: #111;
+}
+.nota-nombre.estado-deducida,
+.nota-nombre.estado-dudosa {
+    color: var(--rojo);
+    background: rgba(245, 158, 11, 0.22);
+    border-radius: 10px;
+    padding: 1px 4px;
+    animation: pulso-dudosa 2s ease-in-out infinite;
+}
+.nota-nombre.estado-confirmada {
+    color: #186314;
+}
+.nota-nombre.seleccionada {
+    outline: 2px solid var(--azul);
+    outline-offset: 1px;
+    animation: none;
+}
+@keyframes pulso-dudosa {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    50%       { box-shadow: 0 0 0 3px rgba(245,158,11,0.25); }
+}
+
+/* ---- Cabeza seleccionada (ring alrededor del notehead) ---- */
+.cabeza-ring {
+    position: absolute;
+    border: 2px solid var(--azul);
+    border-radius: 3px;
+    pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(78,134,245,0.3);
+}
+
+/* ============================================================
+   BARRA LATERAL (paso 2)
+   ============================================================ */
+.barra-lateral {
+    width: var(--barra-lateral-w);
+    flex-shrink: 0;
+    border-left: 1px solid var(--borde);
+    background: var(--fondo-card);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.barra-lateral-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.barra-lateral-pie {
+    flex-shrink: 0;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--borde);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+/* Tarjeta de resumen */
+.tarjeta-resumen {
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    padding: 0.875rem 1rem;
+}
+.resumen-titulo {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--texto-3);
+    margin-bottom: 0.5rem;
+}
+.resumen-cambios { list-style: none; }
+.resumen-cambios li {
+    font-size: 0.78rem;
+    color: var(--texto-2);
+    line-height: 1.6;
+    border-bottom: 1px solid var(--borde);
+    padding: 0.25rem 0;
+}
+.resumen-cambios li:last-child { border-bottom: none; }
+.aviso-item {
+    font-size: 0.76rem;
+    color: var(--amber);
+    display: flex;
+    gap: 0.4rem;
+    align-items: flex-start;
+    padding: 0.25rem 0;
+}
+
+/* Contador de dudosas */
+.contador-dudosas {
+    text-align: center;
+    padding: 0.75rem 0;
+}
+.contador-num {
+    font-family: var(--fuente-titulo);
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--amber);
+}
+.contador-num.todo-ok { color: var(--verde); font-size: 1.5rem; }
+.contador-etiqueta {
+    font-size: 0.78rem;
+    color: var(--texto-3);
+    margin-top: 0.2rem;
+}
+
+/* Lista de dudosas */
+.lista-dudosas { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+.item-dudosa {
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 var(--radio-sm) var(--radio-sm) 0;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background 150ms;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.item-dudosa:hover { background: rgba(255,255,255,0.05); }
+.item-dudosa.activo { border-left-color: var(--azul); }
+.item-dudosa.confirmada { border-left-color: var(--verde); opacity: 0.7; }
+.item-dudosa-loc {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    letter-spacing: 0.02em;
+}
+.item-dudosa-info {
+    font-size: 0.82rem;
+    color: var(--texto-2);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.item-dudosa-nota {
+    font-family: var(--fuente-nota);
+    font-size: 0.95rem;
+    color: var(--rojo);
+    font-weight: bold;
+}
+.item-dudosa.confirmada .item-dudosa-nota { color: var(--verde); }
+.item-dudosa-motivo {
+    font-size: 0.7rem;
+    color: var(--texto-3);
+    font-style: italic;
+}
+
+/* Navegación entre dudosas */
+.nav-dudosas {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.nav-dudosas-pos {
+    font-size: 0.78rem;
+    color: var(--texto-3);
+}
+
+/* ============================================================
+   SELECTOR DE NOTA (popover)
+   ============================================================ */
+.selector-nota {
+    position: fixed;
+    z-index: 200;
+    background: var(--fondo-card);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    padding: 1rem;
+    width: 264px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.selector-nota.visible { display: flex; }
+
+.selector-titulo {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+}
+.selector-propuesta {
+    font-size: 0.8rem;
+    color: var(--texto-2);
+}
+.selector-propuesta strong {
+    font-family: var(--fuente-nota);
+    font-size: 1rem;
+    color: var(--texto);
+}
+
+/* Botones de nota */
+.notas-btns {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.btn-nota {
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    color: var(--texto);
+    font-family: var(--fuente-nota);
+    font-size: 0.82rem;
+    padding: 0.4rem 0;
+    cursor: pointer;
+    text-align: center;
+    transition: background 120ms, border-color 120ms;
+}
+.btn-nota:hover   { background: rgba(255,255,255,0.1); }
+.btn-nota.activo  { background: var(--primario); color: var(--primario-texto); border-color: transparent; }
+
+/* Control de alteración */
+.alt-control {
+    display: flex;
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.btn-alt {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--borde);
+    color: var(--texto-2);
+    font-size: 0.95rem;
+    padding: 0.4rem;
+    cursor: pointer;
+    transition: background 120ms;
+    text-align: center;
+}
+.btn-alt:last-child { border-right: none; }
+.btn-alt:hover  { background: rgba(255,255,255,0.08); }
+.btn-alt.activo { background: rgba(255,255,255,0.15); color: var(--texto); }
+
+/* Acciones del popover */
+.selector-acciones {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.selector-acciones .btn-secundario {
+    flex: 1;
+    font-size: 0.76rem;
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+}
+.selector-acciones .btn-primario {
+    flex: 1.5;
+    font-size: 0.76rem;
+    padding: 0.45rem 0.5rem;
+}
+
+/* ============================================================
+   MODAL DE CONFIRMACIÓN
+   ============================================================ */
+.modal-fondo {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+.modal-fondo.visible { display: flex; }
+
+.modal-contenido {
+    background: var(--fondo-card);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    padding: 1.75rem 2rem;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.modal-titulo {
+    font-family: var(--fuente-titulo);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--texto);
+}
+.modal-mensaje {
+    font-size: 0.88rem;
+    color: var(--texto-2);
+    line-height: 1.55;
+}
+.modal-btns {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+/* ============================================================
+   PASO 3 — LISTO
+   ============================================================ */
+#paso-listo {
+    align-items: center;
+    justify-content: center;
+}
+
+.tarjeta-listo {
+    background: var(--fondo-card);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 3rem 3.5rem;
+    max-width: 460px;
+    width: 90%;
+    text-align: center;
+    box-shadow: var(--sombra-card);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.escudo-listo {
+    height: 72px;
+    width: auto;
+    object-fit: contain;
+    opacity: 0.88;
+}
+.escudo-listo-blanco {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.88);
+    padding: 6px;
+}
+
+.icono-exito-circulo {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.15);
+    border: 2px solid var(--verde);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--verde);
+    font-size: 1.5rem;
+}
+
+.listo-titulo {
+    font-family: var(--fuente-titulo);
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--texto);
+}
+.listo-nombre {
+    font-size: 0.85rem;
+    color: var(--texto-2);
+    word-break: break-all;
+}
+.listo-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+    max-width: 280px;
+}
+
+/* ============================================================
+   TARJETA GENÉRICA
+   ============================================================ */
+.tarjeta {
+    background: var(--fondo-card);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra-card);
+}
+
+/* ============================================================
+   SCROLLBAR ESTILIZADO
+   ============================================================ */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ============================================================
+   RESPONSIVE — 1000 px mínimo
+   ============================================================ */
+@media (max-width: 1100px) {
+    :root { --barra-lateral-w: 280px; }
+    .notas-btns { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 1000px) {
+    .scroll-paginas { padding: 1.5rem; }
+    :root { --barra-lateral-w: 260px; }
+    .cabecera { padding: 0 1rem; }
+}

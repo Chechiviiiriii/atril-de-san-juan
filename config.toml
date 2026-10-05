@@ -1,0 +1,28 @@
+# Configuración de pdf2notas
+# Edita este archivo para personalizar rutas y tiempos de espera.
+
+[rutas]
+# Ruta al ejecutable de Audiveris.
+# Dejar vacío para buscar automáticamente en el PATH y rutas típicas.
+# Ejemplo Windows: "C:\\Program Files\\Audiveris\\Audiveris.exe"
+# Ejemplo macOS:   "/Applications/Audiveris.app/Contents/MacOS/Audiveris"
+audiveris = ""
+
+# Ruta al ejecutable de MuseScore.
+# Dejar vacío para buscar automáticamente.
+# Ejemplo Windows: "C:\\Program Files\\MuseScore 4\\bin\\MuseScore4.exe"
+musescore = ""
+
+[opciones]
+# Tiempo máximo (en segundos) para que Audiveris procese un PDF.
+timeout_omr = 900
+
+# Tiempo máximo (en segundos) para que MuseScore genere un PDF.
+timeout_render = 300
+
+[salida]
+# Tamaño de letra preferido para los nombres (puntos).
+tamano_letra = 9.5
+
+# Si es true, las notas deducidas del PDF se dibujan en rojo; si es false, en negro.
+color_deducidas = true

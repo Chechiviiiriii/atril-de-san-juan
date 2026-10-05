@@ -1,0 +1,28 @@
+# --- Partituras: tienen derechos de autor y se trabajan solo en local ---
+# Ningún PDF ni nada derivado de ellos (lecturas de Audiveris, resultados).
+*.pdf
+*.mxl
+*.omr
+# Única excepción: la partitura sintética generada por nosotros para los tests.
+!tests/datos/sintetica.pdf
+
+# Resultados e intermedios del programa
+*_notas.pdf
+*_pdf2notas/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Empaquetado (.exe / zip)
+build/
+dist/
+*.spec
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store

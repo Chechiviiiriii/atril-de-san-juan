@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pdf2notas</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<!-- ============================================================
+     CABECERA FIJA
+     ============================================================ -->
+<header class="cabecera">
+  <div class="cabecera-interior">
+    <img id="escudo-cabecera"
+         src="img/escudo_transparente.png"
+         class="escudo-cabecera"
+         alt="Escudo"
+         onerror="this.src='img/escudo.png';this.classList.add('escudo-cabecera-blanco');this.onerror=function(){this.style.display='none'}">
+
+    <div class="cabecera-marca">
+      <span class="nombre-app">pdf2notas</span>
+      <span class="subtitulo-banda">A.M. Stmo. Cristo de la Salud</span>
+    </div>
+
+    <nav class="indicador-pasos" aria-label="Pasos">
+      <span class="paso-ind activo" data-paso="1">
+        <span class="paso-num">1</span>
+        <span class="paso-nombre">Subir</span>
+      </span>
+      <span class="paso-sep" aria-hidden="true">·</span>
+      <span class="paso-ind" data-paso="2">
+        <span class="paso-num">2</span>
+        <span class="paso-nombre">Revisar</span>
+      </span>
+      <span class="paso-sep" aria-hidden="true">·</span>
+      <span class="paso-ind" data-paso="3">
+        <span class="paso-num">3</span>
+        <span class="paso-nombre">Descargar</span>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================================================
+     CONTENIDO PRINCIPAL
+     ============================================================ -->
+<main class="app-main">
+
+  <!-- ====================================================
+       PASO 1 — SUBIR
+       ==================================================== -->
+  <section id="paso-subir" class="paso activo" aria-label="Subir partitura">
+    <!-- Fondo hero -->
+    <div class="hero-imagen" id="hero-imagen"></div>
+    <div class="hero-oscuro"></div>
+
+    <div class="paso-subir-contenido">
+      <!-- Escudo grande -->
+      <img id="escudo-grande"
+           src="img/escudo_transparente.png"
+           class="escudo-grande"
+           alt=""
+           onerror="this.src='img/escudo.png';this.classList.add('escudo-grande-blanco');this.onerror=function(){this.style.display='none'}">
+
+      <!-- Cabecera de la banda -->
+      <div class="cabecera-banda">
+        <span class="banda-titulo-1">Agrupación Musical</span>
+        <span class="banda-titulo-2">Stmo. Cristo de la Salud</span>
+        <div class="banda-linea-datos">
+          <span>Alcalá la Real</span>
+          <!-- Mini clave de fa SVG -->
+          <span class="icono-clave" aria-hidden="true">
+            <svg viewBox="0 0 10 18" width="10" height="18" fill="currentColor">
+              <text y="16" font-size="16" font-family="serif" opacity="0.8">𝄢</text>
+            </svg>
+          </span>
+          <span>1984</span>
+        </div>
+      </div>
+
+      <!-- Tarjeta de subida -->
+      <div class="tarjeta tarjeta-subir" id="tarjeta-subir">
+
+        <!-- Estado: zona de carga (inicial) -->
+        <div id="estado-carga">
+          <div id="zona-carga" class="zona-carga" role="button" tabindex="0"
+               aria-label="Zona de arrastre de archivos PDF">
+            <!-- Icono de partitura -->
+            <svg class="icono-partitura" viewBox="0 0 48 48" fill="none"
+                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="8" y="4" width="32" height="40" rx="3"/>
+              <line x1="14" y1="15" x2="34" y2="15"/>
+              <line x1="14" y1="21" x2="34" y2="21"/>
+              <line x1="14" y1="27" x2="26" y2="27"/>
+              <circle cx="32" cy="34" r="5" stroke-width="1.5"/>
+              <line x1="37" y1="31" x2="37" y2="24" stroke-width="1.8"/>
+            </svg>
+            <p class="zona-carga-titulo">Arrastra aquí la partitura en PDF</p>
+            <p class="zona-carga-o">o</p>
+            <button class="btn-primario" id="btn-elegir" type="button">
+              Elegir archivo
+            </button>
+            <p class="texto-pie">
+              Funciona con PDF exportados de Sibelius, MuseScore o Finale.
+            </p>
+          </div>
+          <input type="file" id="input-archivo" accept=".pdf" aria-hidden="true"
+                 style="position:absolute;opacity:0;pointer-events:none">
+        </div>
+
+        <!-- Estado: procesando -->
+        <div id="estado-procesando" style="display:none">
+          <div class="procesando-contenido">
+            <div class="spinner" role="status" aria-live="polite"
+                 aria-label="Procesando"></div>
+            <p class="fase-texto" id="fase-texto">Iniciando…</p>
+            <p class="procesando-nota">Puede tardar medio minuto la primera vez.</p>
+          </div>
+        </div>
+
+        <!-- Estado: error -->
+        <div id="estado-error" style="display:none">
+          <div class="error-contenido">
+            <div class="icono-error" aria-hidden="true">⚠</div>
+            <p class="error-mensaje" id="error-mensaje"></p>
+            <button class="btn-primario" id="btn-reintentar" type="button">
+              Volver a intentar
+            </button>
+          </div>
+        </div>
+
+      </div><!-- tarjeta-subir -->
+    </div><!-- paso-subir-contenido -->
+  </section>
+
+  <!-- ====================================================
+       PASO 2 — REVISAR
+       ==================================================== -->
+  <section id="paso-revisar" class="paso" aria-label="Revisar notas">
+
+    <!-- Área izquierda: páginas con overlay -->
+    <div class="area-revision">
+      <div class="barra-herramientas">
+        <button class="btn-icono" id="zoom-menos" title="Reducir zoom" aria-label="Reducir zoom">−</button>
+        <span class="zoom-texto" id="zoom-texto" aria-live="polite">100%</span>
+        <button class="btn-icono" id="zoom-mas" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
+        <div class="separador-v"></div>
+        <button class="btn-secundario" id="zoom-ajustar" style="font-size:0.76rem;padding:0.35rem 0.75rem">
+          Ajustar
+        </button>
+      </div>
+      <div class="scroll-paginas" id="scroll-paginas">
+        <!-- Las páginas se insertan aquí por JS -->
+      </div>
+    </div>
+
+    <!-- Barra lateral derecha -->
+    <aside class="barra-lateral" aria-label="Resumen y notas">
+      <div class="barra-lateral-scroll" id="barra-lateral-scroll">
+
+        <!-- Resumen: clave y armadura -->
+        <div class="tarjeta-resumen" id="tarjeta-resumen">
+          <div class="resumen-titulo">Partitura</div>
+          <ul class="resumen-cambios" id="lista-cambios"></ul>
+          <div id="lista-avisos"></div>
+        </div>
+
+        <!-- Contador de dudosas -->
+        <div class="contador-dudosas" id="contador-dudosas">
+          <div class="contador-num" id="contador-num">0</div>
+          <div class="contador-etiqueta" id="contador-etiqueta">notas por revisar</div>
+        </div>
+
+        <!-- Navegación entre dudosas -->
+        <div class="nav-dudosas" id="nav-dudosas">
+          <button class="btn-secundario" id="btn-anterior"
+                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota anterior">
+            ← Anterior
+          </button>
+          <span class="nav-dudosas-pos" id="nav-pos"></span>
+          <button class="btn-secundario" id="btn-siguiente"
+                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota siguiente">
+            Siguiente →
+          </button>
+        </div>
+
+        <!-- Lista de notas dudosas -->
+        <ul class="lista-dudosas" id="lista-dudosas" aria-label="Notas por revisar"></ul>
+
+      </div>
+
+      <!-- Pie de la barra lateral -->
+      <div class="barra-lateral-pie">
+        <button class="btn-primario" id="btn-confirmar" type="button">
+          Confirmar y descargar PDF
+        </button>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- ====================================================
+       PASO 3 — DESCARGAR
+       ==================================================== -->
+  <section id="paso-listo" class="paso" aria-label="Descargar PDF">
+    <div class="tarjeta-listo">
+      <img id="escudo-listo"
+           src="img/escudo_transparente.png"
+           class="escudo-listo"
+           alt=""
+           onerror="this.src='img/escudo.png';this.classList.add('escudo-listo-blanco');this.onerror=function(){this.style.display='none'}">
+
+      <div class="icono-exito-circulo" aria-hidden="true">✓</div>
+
+      <h2 class="listo-titulo">¡Listo!</h2>
+      <p class="listo-nombre" id="listo-nombre"></p>
+
+      <div class="listo-btns">
+        <button class="btn-primario" id="btn-guardar-pdf" type="button">
+          Guardar PDF
+        </button>
+        <a id="btn-descargar-pdf" class="btn-primario" style="display:none;text-align:center;text-decoration:none">
+          Descargar PDF
+        </a>
+        <button class="btn-secundario" id="btn-abrir-pdf" type="button" style="display:none">
+          Abrir PDF
+        </button>
+        <button class="enlace-neutro" id="btn-nueva-partitura" type="button">
+          Poner nombres a otra partitura
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main><!-- app-main -->
+
+<!-- ============================================================
+     SELECTOR DE NOTA (popover flotante)
+     ============================================================ -->
+<div id="selector-nota" class="selector-nota" role="dialog"
+     aria-label="Seleccionar nota" aria-modal="true">
+  <div class="selector-titulo">¿Qué nota es?</div>
+  <div class="selector-propuesta">
+    Propuesta: <strong id="prop-texto">—</strong>
+  </div>
+  <div class="notas-btns" id="notas-btns" role="group" aria-label="Notas">
+    <button class="btn-nota" data-nota="Do">Do</button>
+    <button class="btn-nota" data-nota="Re">Re</button>
+    <button class="btn-nota" data-nota="Mi">Mi</button>
+    <button class="btn-nota" data-nota="Fa">Fa</button>
+    <button class="btn-nota" data-nota="Sol">Sol</button>
+    <button class="btn-nota" data-nota="La">La</button>
+    <button class="btn-nota" data-nota="Si">Si</button>
+  </div>
+  <div class="alt-control" role="group" aria-label="Alteración">
+    <button class="btn-alt" data-alt="b" aria-label="Bemol">♭</button>
+    <button class="btn-alt activo" data-alt="" aria-label="Natural">♮</button>
+    <button class="btn-alt" data-alt="#" aria-label="Sostenido">♯</button>
+  </div>
+  <div class="selector-acciones">
+    <button class="btn-secundario" id="btn-ligada">· (ligada)</button>
+    <button class="btn-primario" id="btn-aceptar-prop">Aceptar propuesta</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL DE CONFIRMACIÓN CON NOTAS PENDIENTES
+     ============================================================ -->
+<div id="modal-fondo" class="modal-fondo" role="dialog"
+     aria-label="Confirmar con notas pendientes" aria-modal="true">
+  <div class="modal-contenido">
+    <div class="modal-titulo">Notas sin revisar</div>
+    <p class="modal-mensaje" id="modal-mensaje"></p>
+    <div class="modal-btns">
+      <button class="btn-secundario" id="modal-cancelar">Cancelar</button>
+      <button class="btn-primario" id="modal-continuar">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
