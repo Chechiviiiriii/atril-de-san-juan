@@ -86,7 +86,7 @@ def _mock_procesar_hilo(trabajo, mxl_precargado=None):
     try:
         import pymupdf
         import music21
-        from superponer import analizar, colocar_nombres
+        from atril.superponer import analizar, colocar_nombres
 
         mxl = mxl_precargado or (_DATOS / "sintetica.musicxml")
         if not mxl.exists():
@@ -655,7 +655,7 @@ def test_empalme_unir_dos(servidor_mock):
         pytest.skip("sintetica.pdf no disponible")
 
     import pymupdf
-    from empalme import contar_paginas as _cp
+    from atril.empalme import contar_paginas as _cp
     n_orig = _cp(_DATOS / "sintetica.pdf")
 
     pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
