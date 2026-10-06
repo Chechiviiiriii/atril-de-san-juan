@@ -1,4 +1,4 @@
-"""Servidor HTTP local para la interfaz gráfica de pdf2notas.
+﻿"""Servidor HTTP local para la interfaz gráfica de pdf2notas.
 
 Expone los endpoints REST que consume la SPA en interfaz/web/.
 Gestiona trabajos de procesamiento en hilos de fondo.
@@ -216,9 +216,9 @@ def _procesar_hilo(trabajo: _Trabajo, mxl_precargado: Optional[Path] = None) -> 
         import pymupdf
         import music21
 
-        from config import cargar_config, HerramientaNoEncontrada
-        from omr import buscar_audiveris, pdf_a_musicxml
-        from superponer import analizar, colocar_nombres, SinCabezasError
+        from atril.config import cargar_config, HerramientaNoEncontrada
+        from atril.omr import buscar_audiveris, pdf_a_musicxml
+        from atril.superponer import analizar, colocar_nombres, SinCabezasError
         from interfaz.cache import buscar_en_cache, guardar_en_cache
 
         config = cargar_config()
@@ -622,7 +622,7 @@ class _Manejador(BaseHTTPRequestHandler):
         correcciones: dict = datos.get("correcciones", {})
 
         try:
-            from superponer import colocar_nombres, escribir_pdf
+            from atril.superponer import colocar_nombres, escribir_pdf
 
             analisis = trabajo.analisis
 
@@ -696,7 +696,7 @@ class _Manejador(BaseHTTPRequestHandler):
         correcciones: dict = datos.get("correcciones", {})
 
         try:
-            from superponer import colocar_nombres
+            from atril.superponer import colocar_nombres
 
             analisis = trabajo.analisis
 
@@ -811,7 +811,7 @@ class _Manejador(BaseHTTPRequestHandler):
 
         try:
             import pymupdf
-            from empalme import titulo_pdf, contar_paginas
+            from atril.empalme import titulo_pdf, contar_paginas
 
             arch.titulo = titulo_pdf(ruta_pdf)
             arch.paginas = contar_paginas(ruta_pdf)
@@ -871,7 +871,7 @@ class _Manejador(BaseHTTPRequestHandler):
             archivos.append(arch)
 
         try:
-            from empalme import unir_pdfs
+            from atril.empalme import unir_pdfs
 
             id_res, resultado = _crear_resultado_empalme()
             resultado.nombre_archivo = nombre_salida

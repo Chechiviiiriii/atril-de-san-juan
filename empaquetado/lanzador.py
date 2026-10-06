@@ -146,8 +146,8 @@ def _diagnostico(ruta_informe: str) -> None:
 
     # Audiveris
     try:
-        from config import cargar_config
-        from omr import buscar_audiveris
+        from atril.config import cargar_config
+        from atril.omr import buscar_audiveris
         cfg = cargar_config()
         ruta_auv = buscar_audiveris(cfg)
         _a("Audiveris", str(ruta_auv))

@@ -16,8 +16,8 @@ import pytest
 from music21 import chord as chord_mod
 from music21 import converter, key, note, pitch, stream
 
-import nombres
-from nombres import (
+import atril.nombres as nombres
+from atril.nombres import (
     MARCA_LIGADA,
     NOMBRES_SOLFEO,
     Resumen,

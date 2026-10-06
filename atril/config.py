@@ -38,7 +38,10 @@ def cargar_config(ruta: Path | None = None) -> dict:
         ValueError: Si el archivo TOML está mal escrito.
     """
     if ruta is None:
-        ruta = Path(__file__).parent / "config.toml"
+        # config.toml está en la raíz del proyecto (un nivel por encima de atril/)
+        # En modo frozen (PyInstaller), __file__ apunta a _internal/atril/,
+        # por lo que parent.parent es _internal/, donde también está config.toml.
+        ruta = Path(__file__).parent.parent / "config.toml"
 
     if not ruta.exists():
         return _clonar_defaults()

@@ -13,8 +13,8 @@ import pymupdf
 import pytest
 from music21 import converter, layout
 
-import superponer as S
-from nombres import nombre_nota
+from atril import superponer as S
+from atril.nombres import nombre_nota
 
 _DATOS = Path(__file__).parent / "datos"
 _AGUDAS_PDF = _DATOS / "agudas.pdf"
@@ -72,3 +72,15 @@ def test_agudas_todos_los_nombres_correctos():
     aciertos = sum(b.size for b in difflib.SequenceMatcher(a=verdad, b=textos, autojunk=False)
                    .get_matching_blocks())
     assert aciertos == len(verdad)
+
+
+def test_segunda_desplazada_se_ordena_de_agudo_a_grave():
+    # Acorde de segunda: la cabeza de arriba (paso 6) va a la derecha de la de abajo (paso 5).
+    # Debe quedar primero la aguda, como da Audiveris, aunque su x sea mayor.
+    def cabeza(x, y, paso):
+        return S.Cabeza(pent=0, x=x, xc=x + 4, y=y, paso=paso, tam=19.0, bbox=(x, y - 4, x + 8, y + 4))
+    grave = cabeza(100.0, 130.0, 5)
+    aguda = cabeza(106.5, 127.5, 6)
+    siguiente = cabeza(118.0, 125.0, 7)          # nota siguiente, no forma parte del acorde
+    ordenadas = S._ordenar_por_columnas([grave, siguiente, aguda])
+    assert [c.paso for c in ordenadas] == [6, 5, 7]

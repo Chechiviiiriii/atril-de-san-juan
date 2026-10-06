@@ -46,3 +46,6 @@ desktop.ini
 # Skills de terceros instaladas en local (no son código del proyecto)
 .claude/skills/
 skills-lock.json
+
+# Imágenes generadas del asistente de instalación
+empaquetado/asistente_*.bmp

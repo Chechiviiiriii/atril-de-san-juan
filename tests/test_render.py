@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config import HerramientaNoEncontrada
-from render import ErrorRender, buscar_musescore, convertir
+from atril.config import HerramientaNoEncontrada
+from atril.render import ErrorRender, buscar_musescore, convertir
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ def test_buscar_musescore_ruta_config_inexistente_lanza_error(tmp_path):
 
 def test_buscar_musescore_sin_nada_menciona_winget(monkeypatch):
     """Sin MuseScore instalado (ni en PATH ni en rutas típicas), el mensaje menciona winget."""
-    import render
+    import atril.render as render
     config = {"rutas": {"musescore": ""}}
     # Vaciar las rutas típicas para no encontrar nada aunque MuseScore esté instalado
     monkeypatch.setattr(render, "_RUTAS_MUSESCORE", [])

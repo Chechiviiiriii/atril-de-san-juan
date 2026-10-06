@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config import HerramientaNoEncontrada
-from omr import (
+from atril.config import HerramientaNoEncontrada
+from atril.omr import (
     ErrorOMR,
     _buscar_mxl_generados,
     _construir_cmd_audiveris,
@@ -44,7 +44,7 @@ def test_buscar_audiveris_frozen_usa_audiveris_empaquetado(tmp_path, monkeypatch
 def test_buscar_audiveris_frozen_sin_bundled_cae_a_busqueda_normal(tmp_path, monkeypatch):
     """Cuando está frozen pero no hay audiveris empaquetado, usa la búsqueda normal."""
     import sys
-    import omr
+    import atril.omr as omr
 
     exe_dir = tmp_path / "app"
     exe_dir.mkdir()
@@ -69,7 +69,7 @@ def test_buscar_audiveris_frozen_sin_bundled_cae_a_busqueda_normal(tmp_path, mon
 def test_buscar_audiveris_no_frozen_ignora_bundled(tmp_path, monkeypatch):
     """Cuando NO está frozen, no busca el Audiveris empaquetado aunque existiera."""
     import sys
-    import omr
+    import atril.omr as omr
 
     # sys.frozen no definido → getattr(sys, "frozen", False) == False
     monkeypatch.delattr(sys, "frozen", raising=False)
@@ -101,7 +101,7 @@ def test_buscar_audiveris_ruta_config_inexistente_lanza_error(tmp_path):
 
 def test_buscar_audiveris_sin_nada_menciona_winget(monkeypatch):
     """Sin Audiveris instalado (ni en PATH ni en rutas típicas), el mensaje menciona winget."""
-    import omr
+    import atril.omr as omr
     config = {"rutas": {"audiveris": ""}}
     # Vaciar las rutas típicas para no encontrar nada aunque Audiveris esté instalado
     monkeypatch.setattr(omr, "_RUTAS_AUDIVERIS", [])

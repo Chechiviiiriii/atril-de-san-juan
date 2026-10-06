@@ -1,4 +1,4 @@
-# firmar_archivo.ps1 — Firma un archivo con el certificado de código de Atril de San Juan.
+﻿# firmar_archivo.ps1 — Firma un archivo con el certificado de código de Atril de San Juan.
 # Uso: powershell -ExecutionPolicy Bypass -File firmar_archivo.ps1 <ruta_archivo>
 param(
     [Parameter(Mandatory=$true)]

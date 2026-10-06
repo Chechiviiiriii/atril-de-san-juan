@@ -1,4 +1,4 @@
-# construir.ps1 — Script de construcción de Atril de San Juan
+﻿# construir.ps1 — Script de construcción de Atril de San Juan
 # Genera el instalador firmado para Windows.
 #
 # Requisitos previos:
@@ -71,7 +71,7 @@ foreach ($dir in @("build", "dist")) {
 if (Test-Path $SALIDA_DIR) {
     Remove-Item $SALIDA_DIR -Recurse -Force
 }
-New-Item -ItemType Directory -Force -Path $SALIDA_DIR | Out-Null
+# ISCC crea el directorio salida por sí mismo; no pre-crearlo evita el error 183 (ERROR_ALREADY_EXISTS).
 Write-Host "      Listo."
 Write-Host ""
 
@@ -88,11 +88,27 @@ src = Path(r'$PNG_ORIG')
 dst = Path(r'$ICONO')
 
 img = Image.open(src).convert('RGBA')
-tamanios = [16, 32, 48, 64, 128, 256]
-imagenes = [img.resize((t, t), Image.LANCZOS) for t in tamanios]
-imagenes[0].save(dst, format='ICO', sizes=[(t, t) for t in tamanios],
-                  append_images=imagenes[1:])
+# Centrar el escudo en un lienzo cuadrado (sin deformarlo) y partir del tamaño GRANDE:
+# Pillow genera los tamaños pequeños reduciendo la imagen base, nunca ampliándola.
+lado = max(img.size)
+cuadrado = Image.new('RGBA', (lado, lado), (0, 0, 0, 0))
+cuadrado.paste(img, ((lado - img.width) // 2, (lado - img.height) // 2), img)
+base = cuadrado.resize((256, 256), Image.LANCZOS)
+tamanios = [16, 24, 32, 48, 64, 128, 256]
+base.save(dst, format='ICO', sizes=[(t, t) for t in tamanios])
 print(f'  Icono generado: {dst}  ({tamanios})')
+
+# Imágenes del asistente de instalación (con el escudo sobre el negro de la banda)
+fondo = (15, 15, 16, 255)
+def lienzo(ancho, alto, alto_escudo, y=None):
+    c = Image.new('RGBA', (ancho, alto), fondo)
+    e = img.resize((round(img.width * alto_escudo / img.height), alto_escudo), Image.LANCZOS)
+    c.paste(e, ((ancho - e.width) // 2, (alto - e.height) // 2 if y is None else y), e)
+    return c.convert('RGB')
+for escala in (1, 2):
+    lienzo(164 * escala, 314 * escala, 150 * escala).save(src.parent.parent.parent.parent / 'empaquetado' / f'asistente_grande_{escala}x.bmp')
+    lienzo(55 * escala, 55 * escala, 49 * escala).save(src.parent.parent.parent.parent / 'empaquetado' / f'asistente_pequeno_{escala}x.bmp')
+print('  Imágenes del asistente generadas')
 "
 if ($LASTEXITCODE -ne 0) { throw "Falló la generación del icono ICO." }
 Write-Host ""
@@ -149,12 +165,11 @@ Write-Host "[7/7] Generando el instalador con Inno Setup..."
 
 # Construir la cadena de la herramienta de firma para ISCC.
 # $f es reemplazado por Inno Setup con la ruta del archivo a firmar.
-$ComandoFirma = "powershell.exe -ExecutionPolicy Bypass -File `"$FIRMAR_PS1`" `$f"
+# Usar ruta sin espacios para el script de firma (ISCC no maneja bien las rutas con espacios)
+$ComandoFirma = "powershell.exe -ExecutionPolicy Bypass -File C:\Users\josem\firmar_atril.ps1 `$f"
 
 Set-Location $EMP
-& "$ISCC" `
-    "/SPSFirmar=$ComandoFirma" `
-    "$ISS"
+& "$ISCC" "/SPSFirmar=$ComandoFirma" "instalador.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup (ISCC) falló." }
 Write-Host "      Instalador generado."
 Write-Host ""
@@ -196,7 +211,7 @@ Write-Host ""
 Write-Host "  Instalador : $INSTALLER_PATH"
 Write-Host "  Tamaño     : $tamano_mb MB"
 Write-Host ""
-Write-Host "  Nota: La firma es autofirmada. Windows mostrará el aviso"
+Write-Host "  Nota: La firma es autofirmada. Windows mostrara el aviso"
 Write-Host "  'Windows protegió su PC'. Los usuarios deben pulsar"
-Write-Host "  'Más información' -> 'Ejecutar de todas formas'."
+Write-Host "  'Mas informacion' -> 'Ejecutar de todas formas'."
 Write-Host ""

@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config import HerramientaNoEncontrada, buscar_ejecutable
+from .config import HerramientaNoEncontrada, buscar_ejecutable
 
 # Rutas típicas de instalación de Audiveris según plataforma
 _RUTAS_AUDIVERIS: list[Path] = [

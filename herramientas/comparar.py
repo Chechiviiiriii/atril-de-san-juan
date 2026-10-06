@@ -23,6 +23,12 @@ from pathlib import Path
 
 import pymupdf
 
+# Añadir la raíz del proyecto al path (para importar atril.* si fuera necesario)
+_RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
+if str(_RAIZ_PROYECTO) not in sys.path:
+    sys.path.insert(0, str(_RAIZ_PROYECTO))
+
+
 # Patrón para nombres de nota en texto ordinario
 _PAT_NOMBRE = re.compile(
     r"^(Do|Re|Mi|Fa|Sol|La|Si)(##?|bb?|#|b)?$",

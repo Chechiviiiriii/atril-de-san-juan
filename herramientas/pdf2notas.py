@@ -7,6 +7,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Añadir la raíz del proyecto al path para poder importar atril.*
+_RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
+if str(_RAIZ_PROYECTO) not in sys.path:
+    sys.path.insert(0, str(_RAIZ_PROYECTO))
+
 # Reconfigurar stdout para soportar caracteres UTF-8 en Windows (cp1252)
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -16,14 +21,14 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 def _importar_nombres():
-    """Importa el módulo nombres; da error claro si no está disponible."""
+    """Importa atril.nombres; da error claro si no está disponible."""
     try:
-        import nombres  # type: ignore[import]
+        import atril.nombres as nombres  # type: ignore[import]
         return nombres
     except ImportError:
         print(
-            "Error: no se encontró el módulo 'nombres.py'. "
-            "Asegúrate de que existe en el directorio del proyecto.",
+            "Error: no se encontró 'atril.nombres'. "
+            "Ejecuta desde la raíz del proyecto.",
             file=sys.stderr,
         )
         raise
@@ -137,7 +142,7 @@ def _verificar_e_imprimir(pdf: Path, partitura: object, args: "argparse.Namespac
         args: Argumentos de la línea de comandos (para comprobar --revisar).
     """
     try:
-        from verificacion import verificar  # type: ignore[import]
+        from atril.verificacion import verificar  # type: ignore[import]
     except ImportError:
         print("Verificación omitida: módulo 'verificacion' no disponible.")
         return
@@ -237,8 +242,8 @@ def _procesar_un_pdf_redibujar(
         partitura_parseada: Partitura ya parseada (opcional).
         mxl_entrada: MXL ya generado (omite el paso OMR si se proporciona).
     """
-    from omr import pdf_a_musicxml
-    from render import musicxml_a_pdf, revisar_en_musescore
+    from atril.omr import pdf_a_musicxml
+    from atril.render import musicxml_a_pdf, revisar_en_musescore
 
     timeout_omr = config.get("opciones", {}).get("timeout_omr", 900)
     timeout_render = config.get("opciones", {}).get("timeout_render", 300)
@@ -327,7 +332,7 @@ def _procesar_un_pdf(
         musescore: Ruta al ejecutable de MuseScore (None si no está instalado).
         carpeta_trabajo: Directorio donde se guardan los intermedios.
     """
-    from omr import pdf_a_musicxml
+    from atril.omr import pdf_a_musicxml
 
     timeout_omr = config.get("opciones", {}).get("timeout_omr", 900)
     timeout_render = config.get("opciones", {}).get("timeout_render", 300)
@@ -335,8 +340,8 @@ def _procesar_un_pdf(
     usar_redibujar = getattr(args, "redibujar", False) or getattr(args, "revisar", False)
 
     if usar_redibujar and musescore is None:
-        from render import buscar_musescore
-        from config import HerramientaNoEncontrada
+        from atril.render import buscar_musescore
+        from atril.config import HerramientaNoEncontrada
         try:
             musescore = buscar_musescore(config)
         except HerramientaNoEncontrada as exc:
@@ -377,7 +382,7 @@ def _procesar_un_pdf(
 
         # Superposición
         try:
-            from superponer import superponer_nombres, SinCabezasError  # type: ignore[import]
+            from atril.superponer import superponer_nombres, SinCabezasError  # type: ignore[import]
             color_deducidas = config.get("salida", {}).get("color_deducidas", True)
             pdf_mov = carpeta_trabajo / f"{pdf.stem}{sufijo}_notas.pdf"
             analisis = superponer_nombres(
@@ -391,8 +396,8 @@ def _procesar_un_pdf(
                 "  Intentando modo --redibujar como alternativa…"
             )
             if musescore is None:
-                from render import buscar_musescore
-                from config import HerramientaNoEncontrada
+                from atril.render import buscar_musescore
+                from atril.config import HerramientaNoEncontrada
                 try:
                     musescore = buscar_musescore(config)
                 except HerramientaNoEncontrada as exc2:
@@ -484,8 +489,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # Cargar configuración y localizar herramientas
     try:
-        from config import cargar_config, HerramientaNoEncontrada
-        from omr import buscar_audiveris
+        from atril.config import cargar_config, HerramientaNoEncontrada
+        from atril.omr import buscar_audiveris
 
         config = cargar_config()
         audiveris = buscar_audiveris(config)
@@ -501,8 +506,8 @@ def main(argv: list[str] | None = None) -> int:
     usar_musescore = getattr(args, "redibujar", False) or getattr(args, "revisar", False)
     if usar_musescore:
         try:
-            from render import buscar_musescore
-            from config import HerramientaNoEncontrada
+            from atril.render import buscar_musescore
+            from atril.config import HerramientaNoEncontrada
             musescore = buscar_musescore(config)
         except HerramientaNoEncontrada as exc:
             print(f"Error: {exc}", file=sys.stderr)

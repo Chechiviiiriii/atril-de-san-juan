@@ -50,10 +50,13 @@ fitz_datas, fitz_binaries, fitz_hidden = collect_all("pymupdf")
 # ---------------------------------------------------------------------------
 
 project_datas = [
+    # Archivos de setuptools que PyInstaller no incluye automáticamente
+    (str(Path(__import__("setuptools").__file__).parent / "_vendor" / "jaraco" / "text" / "Lorem ipsum.txt"),
+     "setuptools/_vendor/jaraco/text"),
     # Archivos web de la interfaz
     (str(PROYECTO / "interfaz" / "web"), "interfaz/web"),
-    # Hoja de estilos de nombres musicales
-    (str(PROYECTO / "estilo_nombres.mss"), "."),
+    # Hoja de estilos de nombres musicales (ahora en atril/)
+    (str(PROYECTO / "atril" / "estilo_nombres.mss"), "atril"),
     # Configuración por defecto (los usuarios pueden editarla)
     (str(PROYECTO / "config.toml"), "."),
     # Metadatos de la app en la ruta que app.py espera: empaquetado/datos_app.json
@@ -99,6 +102,7 @@ hidden_imports = list(set(
         "clr_loader.util.find",
         # music21 MusicXML
         "music21",
+        "music21.corpus",
         "music21.musicxml",
         "music21.musicxml.m21ToXml",
         "music21.musicxml.xmlToM21",
@@ -111,8 +115,15 @@ hidden_imports = list(set(
         # pymupdf / fitz
         "pymupdf",
         "fitz",
-        # empalme: importado de forma diferida por servidor.py
-        "empalme",
+        # atril: módulos del motor importados de forma diferida
+        "atril",
+        "atril.config",
+        "atril.nombres",
+        "atril.omr",
+        "atril.render",
+        "atril.superponer",
+        "atril.verificacion",
+        "atril.empalme",
     ]
 ))
 
@@ -141,7 +152,8 @@ excludes = [
     "PySide6",
     "gi",
     "gtk",
-    "music21.corpus",
+    # "music21.corpus" NO se excluye: music21 lo importa al arrancar.
+    # Sus partituras de ejemplo (lo pesado) ya se quitan de los datos más arriba.
 ]
 
 # ---------------------------------------------------------------------------

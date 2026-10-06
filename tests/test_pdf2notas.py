@@ -42,7 +42,7 @@ def _inyectar_mock_nombres(monkeypatch, resumen=None):
 
 def test_imprimir_resumen_imprime_cambios(capsys):
     """Imprime las líneas de cambios antes del conteo de notas."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     resumen = ResumenFalso(
         notas_nombradas=50,
         ligadas_marcadas=3,
@@ -58,7 +58,7 @@ def test_imprimir_resumen_imprime_cambios(capsys):
 
 def test_imprimir_resumen_tolerancia_api_vieja(capsys):
     """Tolera el campo ligadas_omitidas de la API anterior."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
 
     @dataclass
     class ResumenViejo:
@@ -77,7 +77,7 @@ def test_imprimir_resumen_tolerancia_api_vieja(capsys):
 
 def test_imprimir_resumen_muestra_avisos(capsys):
     """Muestra los avisos con el símbolo de advertencia."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     resumen = ResumenFalso(avisos=["nota de advertencia prueba"], cambios=[])
     pdf2notas._imprimir_resumen(resumen)
     out = capsys.readouterr().out
@@ -111,7 +111,7 @@ def test_poner_nombres_limpia_compositor_music21(monkeypatch, tmp_path):
 
     salida = tmp_path / "salida.musicxml"
 
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     pdf2notas.poner_nombres(entrada, salida, titulo="Mi partitura")
 
     # Verificar que el archivo XML no contiene "Music21" como compositor
@@ -145,7 +145,7 @@ def test_poner_nombres_limpia_nombre_parte_voice(monkeypatch, tmp_path):
     partitura.write("musicxml", fp=str(entrada))
     salida = tmp_path / "salida.musicxml"
 
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     pdf2notas.poner_nombres(entrada, salida, titulo="Test")
 
     resultado = music21.converter.parse(str(salida))
@@ -159,7 +159,7 @@ def test_poner_nombres_limpia_nombre_parte_voice(monkeypatch, tmp_path):
 
 def test_main_archivo_inexistente(tmp_path):
     """Devuelve código 1 si el PDF no existe."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     ret = pdf2notas.main([str(tmp_path / "no_existe.pdf")])
     assert ret == 1
 
@@ -168,28 +168,28 @@ def test_main_no_es_pdf(tmp_path):
     """Devuelve código 1 si el archivo no es PDF."""
     f = tmp_path / "partitura.txt"
     f.write_text("")
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     ret = pdf2notas.main([str(f)])
     assert ret == 1
 
 
 def test_main_sin_argumentos_devuelve_1():
     """Sin argumentos devuelve 1."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     ret = pdf2notas.main([])
     assert ret == 1
 
 
 def test_main_salida_con_carpeta_devuelve_1(tmp_path):
     """--salida y --carpeta juntos devuelven 1."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
     ret = pdf2notas.main(["--salida", str(tmp_path / "out.pdf"), "--carpeta", str(tmp_path)])
     assert ret == 1
 
 
 def test_main_carpeta_salta_notas_y_objetivo(monkeypatch, tmp_path):
     """--carpeta salta archivos _notas.pdf y _objetivo.pdf."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
 
     # Crear PDFs en la carpeta
     (tmp_path / "real.pdf").write_text("")
@@ -204,11 +204,11 @@ def test_main_carpeta_salta_notas_y_objetivo(monkeypatch, tmp_path):
     monkeypatch.setattr(pdf2notas, "_procesar_un_pdf", mock_procesar)
 
     # Mockear herramientas para que no busque executables reales
-    from config import cargar_config as _cc
+    from atril.config import cargar_config as _cc
     monkeypatch.setattr(pdf2notas, "_importar_nombres", lambda: MagicMock())
 
-    with patch("omr.buscar_audiveris", return_value=tmp_path / "aud.exe"), \
-         patch("render.buscar_musescore", return_value=tmp_path / "ms.exe"):
+    with patch("atril.omr.buscar_audiveris", return_value=tmp_path / "aud.exe"), \
+         patch("atril.render.buscar_musescore", return_value=tmp_path / "ms.exe"):
         pdf2notas.main(["--carpeta", str(tmp_path)])
 
     assert "real.pdf" in pdfs_procesados
@@ -218,7 +218,7 @@ def test_main_carpeta_salta_notas_y_objetivo(monkeypatch, tmp_path):
 
 def test_main_carpeta_continua_tras_error(monkeypatch, tmp_path):
     """--carpeta sigue procesando aunque uno falle; devuelve código != 0."""
-    import pdf2notas
+    import herramientas.pdf2notas as pdf2notas
 
     (tmp_path / "bueno.pdf").write_text("")
     (tmp_path / "malo.pdf").write_text("")
@@ -232,8 +232,8 @@ def test_main_carpeta_continua_tras_error(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pdf2notas, "_procesar_un_pdf", mock_procesar)
 
-    with patch("omr.buscar_audiveris", return_value=tmp_path / "aud.exe"), \
-         patch("render.buscar_musescore", return_value=tmp_path / "ms.exe"):
+    with patch("atril.omr.buscar_audiveris", return_value=tmp_path / "aud.exe"), \
+         patch("atril.render.buscar_musescore", return_value=tmp_path / "ms.exe"):
         ret = pdf2notas.main(["--carpeta", str(tmp_path)])
 
     assert "bueno.pdf" in llamadas

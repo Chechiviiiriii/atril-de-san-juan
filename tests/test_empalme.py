@@ -18,7 +18,7 @@ _DATOS = Path(__file__).parent / "datos"
 @requiere_datos("victoria.pdf")
 def test_titulo_victoria():
     """victoria.pdf → «¡Tú eres Victoria!»"""
-    from empalme import titulo_pdf
+    from atril.empalme import titulo_pdf
     titulo = titulo_pdf(_DATOS / "victoria.pdf")
     assert "Victoria" in titulo, f"Título inesperado: {titulo!r}"
 
@@ -26,14 +26,14 @@ def test_titulo_victoria():
 @requiere_datos("dulce.pdf")
 def test_titulo_dulce():
     """dulce.pdf → «Dulce mirada de Jesús»"""
-    from empalme import titulo_pdf
+    from atril.empalme import titulo_pdf
     titulo = titulo_pdf(_DATOS / "dulce.pdf")
     assert "Dulce" in titulo or "dulce" in titulo.lower(), f"Título inesperado: {titulo!r}"
 
 
 def test_titulo_sintetica():
     """sintetica.pdf → título detectado (no vacío) o nombre del archivo."""
-    from empalme import titulo_pdf
+    from atril.empalme import titulo_pdf
     if not (_DATOS / "sintetica.pdf").exists():
         pytest.skip("sintetica.pdf no disponible")
     titulo = titulo_pdf(_DATOS / "sintetica.pdf")
@@ -47,7 +47,7 @@ def test_titulo_sintetica():
 
 def test_contar_paginas_sintetica():
     """sintetica.pdf debe tener al menos 1 página."""
-    from empalme import contar_paginas
+    from atril.empalme import contar_paginas
     if not (_DATOS / "sintetica.pdf").exists():
         pytest.skip("sintetica.pdf no disponible")
     n = contar_paginas(_DATOS / "sintetica.pdf")
@@ -60,7 +60,7 @@ def test_contar_paginas_sintetica():
 
 def test_unir_dos_pdfs(tmp_path):
     """Unir sintetica.pdf consigo mismo da el doble de páginas."""
-    from empalme import contar_paginas, unir_pdfs
+    from atril.empalme import contar_paginas, unir_pdfs
     if not (_DATOS / "sintetica.pdf").exists():
         pytest.skip("sintetica.pdf no disponible")
 
@@ -77,7 +77,7 @@ def test_unir_dos_pdfs(tmp_path):
 @requiere_datos("victoria.pdf", "dulce.pdf")
 def test_unir_tres_pdfs_orden_paginas(tmp_path):
     """Victoria + Dulce + Sintética dan la suma correcta de páginas en orden."""
-    from empalme import contar_paginas, unir_pdfs
+    from atril.empalme import contar_paginas, unir_pdfs
     if not (_DATOS / "sintetica.pdf").exists():
         pytest.skip("sintetica.pdf no disponible")
 
@@ -104,7 +104,7 @@ def test_unir_tres_pdfs_orden_paginas(tmp_path):
 
 def test_unir_pdfs_requiere_al_menos_uno(tmp_path):
     """unir_pdfs con lista vacía lanza ValueError."""
-    from empalme import unir_pdfs
+    from atril.empalme import unir_pdfs
     with pytest.raises(ValueError):
         unir_pdfs([], tmp_path / "vacio.pdf")
 
@@ -115,7 +115,7 @@ def test_unir_pdfs_requiere_al_menos_uno(tmp_path):
 
 def test_pdf_danado(tmp_path):
     """Un archivo no-PDF lanza PDFDaniadoError."""
-    from empalme import PDFDaniadoError, titulo_pdf, contar_paginas
+    from atril.empalme import PDFDaniadoError, titulo_pdf, contar_paginas
 
     pdf_malo = tmp_path / "danado.pdf"
     pdf_malo.write_bytes(b"Esto no es un PDF valido")
@@ -131,7 +131,7 @@ def test_pdf_danado(tmp_path):
 
 def test_unir_con_pdf_danado(tmp_path):
     """unir_pdfs lanza PDFDaniadoError si algún archivo está dañado."""
-    from empalme import PDFDaniadoError, unir_pdfs
+    from atril.empalme import PDFDaniadoError, unir_pdfs
     if not (_DATOS / "sintetica.pdf").exists():
         pytest.skip("sintetica.pdf no disponible")
 

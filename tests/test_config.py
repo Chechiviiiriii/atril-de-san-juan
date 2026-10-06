@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from config import HerramientaNoEncontrada, buscar_ejecutable, cargar_config
+from atril.config import HerramientaNoEncontrada, buscar_ejecutable, cargar_config
 
 
 # ---------------------------------------------------------------------------

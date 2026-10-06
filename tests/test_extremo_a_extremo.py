@@ -52,8 +52,8 @@ def _calcular_similitud(lista_a: list[str], lista_b: list[str]) -> float:
 @pytest.fixture(scope="session")
 def audiveris_exe():
     """Ruta a Audiveris; salta el test si no está instalado."""
-    from config import cargar_config
-    from omr import buscar_audiveris
+    from atril.config import cargar_config
+    from atril.omr import buscar_audiveris
     try:
         return buscar_audiveris(cargar_config())
     except Exception:
@@ -63,8 +63,8 @@ def audiveris_exe():
 @pytest.fixture(scope="session")
 def musescore_exe():
     """Ruta a MuseScore; salta el test si no está instalado."""
-    from config import cargar_config
-    from render import buscar_musescore
+    from atril.config import cargar_config
+    from atril.render import buscar_musescore
     try:
         return buscar_musescore(cargar_config())
     except Exception:
@@ -104,7 +104,7 @@ def test_extremo_a_extremo(
     shutil.copy2(str(_PDF_SINTETICA), str(pdf_trabajo))
 
     # Ejecutar el pipeline en modo superposición (por defecto)
-    from pdf2notas import main
+    from herramientas.pdf2notas import main
     ret = main([str(pdf_trabajo), "--conservar"])
     assert ret == 0, "El pipeline devolvió código de error"
 
@@ -115,7 +115,7 @@ def test_extremo_a_extremo(
 
     # Verificar que el PDF contiene nombres de nota
     import re
-    from comparar import extraer_nombres
+    from herramientas.comparar import extraer_nombres
     nombres_extraidos = extraer_nombres(pdf_salida)
     pat = re.compile(r"^(Do|Re|Mi|Fa|Sol|La|Si)(##?|bb?|#|b)?$")
     nombres_validos = [n for n in nombres_extraidos if pat.match(n)]
@@ -126,7 +126,7 @@ def test_extremo_a_extremo(
 
     # Calcular nombres esperados desde el MusicXML de referencia
     import music21
-    import nombres as mod_nombres
+    from atril import nombres as mod_nombres
     partitura_ref = music21.converter.parse(str(_XML_VERDAD))
     textos = mod_nombres.textos_por_nota(partitura_ref)
     esperados = [t.texto for t in textos if t.texto != mod_nombres.MARCA_LIGADA]

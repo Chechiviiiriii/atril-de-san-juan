@@ -46,7 +46,7 @@ class TestVerificacionSimulada:
 
     def test_sin_diferencias(self):
         """Sin diferencias entre PDF y OMR no debe haber avisos."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -67,7 +67,7 @@ class TestVerificacionSimulada:
 
     def test_con_diferencias(self):
         """Diferencias en sistemas individuales generan avisos correctos."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -97,7 +97,7 @@ class TestVerificacionSimulada:
 
     def test_sobra_nota(self):
         """Cuando hay más notas en OMR que en el PDF, el mensaje dice 'sobra'."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -116,7 +116,7 @@ class TestVerificacionSimulada:
 
     def test_sistemas_diferentes_aviso_general(self):
         """Si el número de sistemas difiere, un aviso general y comprobado=True."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -136,7 +136,7 @@ class TestVerificacionSimulada:
 
     def test_pdf_no_vectorial_comprobado_falso(self):
         """Si el PDF no es vectorial, comprobado=False y sin avisos."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
 
@@ -152,7 +152,7 @@ class TestVerificacionSimulada:
 
     def test_aviso_falta_una_nota_singular(self):
         """El mensaje usa 'falta 1 nota' en singular."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -171,7 +171,7 @@ class TestVerificacionSimulada:
 
     def test_aviso_sobra_una_nota_singular(self):
         """El mensaje usa 'sobra 1 nota' en singular."""
-        import verificacion as v
+        import atril.verificacion as v
         original_pdf = v.contar_cabezas_pdf
         original_omr = v.contar_notas_omr
         original_rango = v.rango_compases_sistema
@@ -205,7 +205,7 @@ class TestConPDFsReales:
     def test_victoria_sin_avisos(self):
         """Victoria: todas las líneas coinciden → sin avisos."""
         warnings.filterwarnings("ignore")
-        from verificacion import verificar, contar_cabezas_pdf, contar_notas_omr
+        from atril.verificacion import verificar, contar_cabezas_pdf, contar_notas_omr
 
         pdf = DATOS / "victoria.pdf"
         partitura = _victoria_partitura()
@@ -227,7 +227,7 @@ class TestConPDFsReales:
     def test_victoria_cabezas_por_sistema(self):
         """Victoria: conteos por sistema exactos."""
         warnings.filterwarnings("ignore")
-        from verificacion import contar_cabezas_pdf
+        from atril.verificacion import contar_cabezas_pdf
 
         cabezas = contar_cabezas_pdf(DATOS / "victoria.pdf")
         assert cabezas == [21, 26, 22, 38, 36, 24, 18], (
@@ -237,7 +237,7 @@ class TestConPDFsReales:
     def test_dulce_con_avisos_en_lineas_correctas(self):
         """Dulce: avisos exactamente en las líneas 3, 4, 5 y 6."""
         warnings.filterwarnings("ignore")
-        from verificacion import verificar
+        from atril.verificacion import verificar
 
         pdf = DATOS / "dulce.pdf"
         partitura = _dulce_partitura()
@@ -257,7 +257,7 @@ class TestConPDFsReales:
     def test_dulce_totales(self):
         """Dulce: total PDF > total OMR (Audiveris perdió notas)."""
         warnings.filterwarnings("ignore")
-        from verificacion import verificar
+        from atril.verificacion import verificar
 
         resultado = verificar(DATOS / "dulce.pdf", _dulce_partitura())
         assert resultado.total_pdf > resultado.total_omr
@@ -265,7 +265,7 @@ class TestConPDFsReales:
     def test_dulce_diferencias_por_linea(self):
         """Dulce: diferencias concretas en las líneas 3-6."""
         warnings.filterwarnings("ignore")
-        from verificacion import contar_cabezas_pdf, contar_notas_omr
+        from atril.verificacion import contar_cabezas_pdf, contar_notas_omr
 
         cabezas = contar_cabezas_pdf(DATOS / "dulce.pdf")
         notas = contar_notas_omr(_dulce_partitura())
@@ -289,7 +289,7 @@ class TestConPDFsReales:
     def test_sintetica_smufl_detecta_cabezas(self):
         """Sintética (Leland/SMuFL): contar_cabezas_pdf devuelve lista no None."""
         warnings.filterwarnings("ignore")
-        from verificacion import contar_cabezas_pdf
+        from atril.verificacion import contar_cabezas_pdf
 
         cabezas = contar_cabezas_pdf(DATOS / "sintetica.pdf")
         assert cabezas is not None, (
@@ -301,7 +301,7 @@ class TestConPDFsReales:
     def test_sintetica_total_cabezas(self):
         """Sintética: 109 cabezas en total (coincide con el musicxml)."""
         warnings.filterwarnings("ignore")
-        from verificacion import contar_cabezas_pdf
+        from atril.verificacion import contar_cabezas_pdf
 
         cabezas = contar_cabezas_pdf(DATOS / "sintetica.pdf")
         assert cabezas is not None
@@ -313,7 +313,7 @@ class TestConPDFsReales:
     def test_sintetica_verificar(self):
         """Sintética: verificar devuelve un resultado comprobado."""
         warnings.filterwarnings("ignore")
-        from verificacion import verificar
+        from atril.verificacion import verificar
 
         resultado = verificar(DATOS / "sintetica.pdf", _sintetica_partitura())
         # El PDF tiene múltiples sistemas; el MXL tiene 1 → sistema mismatch

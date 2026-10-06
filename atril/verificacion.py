@@ -47,7 +47,7 @@ def contar_cabezas_pdf(pdf: Path) -> list[int] | None:
     except ImportError as exc:
         raise ImportError("pymupdf es necesario para la verificación") from exc
 
-    from superponer import detectar_pentagramas, detectar_cabezas  # type: ignore[import]
+    from .superponer import detectar_pentagramas, detectar_cabezas  # type: ignore[import]
 
     resultado: list[int] = []
 

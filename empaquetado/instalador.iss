@@ -28,6 +28,8 @@ LicenseFile=aviso.txt
 OutputDir=salida
 OutputBaseFilename=Instalar {#AppName} {#AppVersion}
 SetupIconFile=icono.ico
+WizardImageFile=asistente_grande_1x.bmp,asistente_grande_2x.bmp
+WizardSmallImageFile=asistente_pequeno_1x.bmp,asistente_pequeno_2x.bmp
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}
 AppContact={#AppURL}
@@ -50,7 +52,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
 Name: "desktopicon"; \
-  Description: "Crear acceso directo en el {cm:DesktopName}"; \
+  Description: "Crear acceso directo en el Escritorio"; \
   GroupDescription: "Iconos adicionales:"; \
   Flags: checkedonce
 

@@ -81,7 +81,7 @@ def dulce_partitura():
 
 def test_pentagramas_victoria(victoria_doc):
     """Victoria: 7 pentagramas en total."""
-    from superponer import detectar_pentagramas
+    from atril.superponer import detectar_pentagramas
     total = 0
     for num, page in enumerate(victoria_doc):
         ps = detectar_pentagramas(page, num)
@@ -91,7 +91,7 @@ def test_pentagramas_victoria(victoria_doc):
 
 def test_pentagramas_dulce(dulce_doc):
     """Dulce: 8 pentagramas en total."""
-    from superponer import detectar_pentagramas
+    from atril.superponer import detectar_pentagramas
     total = 0
     for num, page in enumerate(dulce_doc):
         ps = detectar_pentagramas(page, num)
@@ -105,7 +105,7 @@ def test_pentagramas_dulce(dulce_doc):
 
 def test_cabezas_victoria(victoria_doc):
     """Victoria: 185 cabezas en total."""
-    from superponer import detectar_pentagramas, detectar_cabezas
+    from atril.superponer import detectar_pentagramas, detectar_cabezas
     total = 0
     for num, page in enumerate(victoria_doc):
         ps = detectar_pentagramas(page, num)
@@ -116,7 +116,7 @@ def test_cabezas_victoria(victoria_doc):
 
 def test_cabezas_dulce(dulce_doc):
     """Dulce: 252 cabezas en total."""
-    from superponer import detectar_pentagramas, detectar_cabezas
+    from atril.superponer import detectar_pentagramas, detectar_cabezas
     total = 0
     for num, page in enumerate(dulce_doc):
         ps = detectar_pentagramas(page, num)
@@ -131,7 +131,7 @@ def test_cabezas_dulce(dulce_doc):
 
 def test_alinear_identica():
     """Alineación perfecta de dos secuencias idénticas."""
-    from superponer import _alinear  # type: ignore[attr-defined]
+    from atril.superponer import _alinear  # type: ignore[attr-defined]
     a = [0, 2, 4, 5, 7]
     b = [0, 2, 4, 5, 7]
     pares = _alinear(a, b)
@@ -143,7 +143,7 @@ def test_alinear_identica():
 
 def test_alinear_con_salto():
     """Alineación: la secuencia b tiene una nota extra en el medio."""
-    from superponer import _alinear  # type: ignore[attr-defined]
+    from atril.superponer import _alinear  # type: ignore[attr-defined]
     a = [0, 2, 4]
     b = [0, 2, 3, 4]
     pares = _alinear(a, b)
@@ -154,7 +154,7 @@ def test_alinear_con_salto():
 
 def test_alinear_vacias():
     """Alineación de listas vacías devuelve lista vacía."""
-    from superponer import _alinear  # type: ignore[attr-defined]
+    from atril.superponer import _alinear  # type: ignore[attr-defined]
     assert _alinear([], []) == []
     # a vacía → ningún par
     assert _alinear([], [1, 2]) == []
@@ -167,7 +167,7 @@ def test_alinear_vacias():
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_analizar_devuelve_analisis(victoria_partitura, tmp_path):
     """analizar() devuelve un Analisis con notas."""
-    from superponer import analizar, Analisis
+    from atril.superponer import analizar, Analisis
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     assert isinstance(analisis, Analisis)
     assert len(analisis.notas) > 0
@@ -177,7 +177,7 @@ def test_analizar_devuelve_analisis(victoria_partitura, tmp_path):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_colocar_nombres_rellena_posiciones(victoria_partitura):
     """colocar_nombres() asigna x/base/tam a todas las notas."""
-    from superponer import analizar, colocar_nombres
+    from atril.superponer import analizar, colocar_nombres
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     colocar_nombres(analisis)
     for nota in analisis.notas:
@@ -189,7 +189,7 @@ def test_colocar_nombres_rellena_posiciones(victoria_partitura):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_escribir_pdf_crea_archivo(victoria_partitura, tmp_path):
     """escribir_pdf() crea el PDF de salida."""
-    from superponer import analizar, colocar_nombres, escribir_pdf
+    from atril.superponer import analizar, colocar_nombres, escribir_pdf
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     colocar_nombres(analisis)
     salida = tmp_path / "victoria_notas.pdf"
@@ -201,7 +201,7 @@ def test_escribir_pdf_crea_archivo(victoria_partitura, tmp_path):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_colocar_nombres_rellama_seguro(victoria_partitura):
     """colocar_nombres() se puede llamar más de una vez sin error."""
-    from superponer import analizar, colocar_nombres
+    from atril.superponer import analizar, colocar_nombres
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     colocar_nombres(analisis)
     # Cambiar un texto y volver a colocar
@@ -213,7 +213,7 @@ def test_colocar_nombres_rellama_seguro(victoria_partitura):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_analisis_serializable(victoria_partitura):
     """Analisis.a_json() produce JSON válido."""
-    from superponer import analizar
+    from atril.superponer import analizar
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     txt = analisis.a_json()
     datos = json.loads(txt)
@@ -230,7 +230,7 @@ def test_analisis_serializable(victoria_partitura):
 def test_sin_superposicion_prioritaria(victoria_partitura):
     """Las notas colocadas no deben caer sobre zonas de alta prioridad (matices, reguladores)."""
     import pymupdf  # noqa: F811 — reutilizado en el cuerpo
-    from superponer import analizar, colocar_nombres, _Prioritaria  # type: ignore[attr-defined]
+    from atril.superponer import analizar, colocar_nombres, _Prioritaria  # type: ignore[attr-defined]
 
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     colocar_nombres(analisis)
@@ -270,7 +270,7 @@ def test_sin_superposicion_prioritaria(victoria_partitura):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_armadura_victoria_cero(victoria_partitura):
     """Victoria: todas las líneas tienen 0 accidentales de armadura."""
-    from superponer import analizar
+    from atril.superponer import analizar
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     # Los cambios de armadura deben ser una lista vacía o solo mencionar 0 bemoles/sostenidos
     for aviso in analisis.avisos:
@@ -283,7 +283,7 @@ def test_armadura_victoria_cero(victoria_partitura):
 @requiere_datos("dulce.pdf", "dulce_omr.mxl")
 def test_armadura_dulce_sistemas(dulce_partitura):
     """Dulce: línea 1 tiene 2 bemoles; línea 4 cambia a 4 bemoles; líneas 5-8 tienen 4 bemoles."""
-    from superponer import analizar
+    from atril.superponer import analizar
     analisis = analizar(_DULCE_PDF, dulce_partitura)
 
     # Los cambios de armadura deben reportar el cambio en línea 4
@@ -299,8 +299,8 @@ def test_armadura_dulce_sistemas(dulce_partitura):
 @requiere_datos("victoria.pdf", "victoria_omr.mxl", "victoria_numerada.pdf")
 def test_comparar_victoria_95_pct(victoria_partitura, tmp_path):
     """El PDF generado de Victoria coincide ≥ 95% con la referencia numerada a mano."""
-    from superponer import superponer_nombres
-    from comparar import comparar
+    from atril.superponer import superponer_nombres
+    from herramientas.comparar import comparar
 
     salida = tmp_path / "victoria_notas.pdf"
     superponer_nombres(_VICTORIA_PDF, victoria_partitura, salida)
@@ -323,19 +323,19 @@ def test_comparar_victoria_95_pct(victoria_partitura, tmp_path):
 
 def test_agrupar_lineas_ignora_barras_intercaladas():
     # Las barras de semicorchea a la misma altura no deben colarse como línea del pentagrama
-    from superponer import _agrupar_lineas_equiespaciadas
+    from atril.superponer import _agrupar_lineas_equiespaciadas
     lineas = [139.3, 143.2, 147.1, 150.0, 151.0, 152.0, 153.0, 154.9]
     assert _agrupar_lineas_equiespaciadas(lineas) == [[139.3, 143.2, 147.1, 151.0, 154.9]]
 
 
 def test_agrupar_lineas_varios_pentagramas():
-    from superponer import _agrupar_lineas_equiespaciadas
+    from atril.superponer import _agrupar_lineas_equiespaciadas
     lineas = [100.0, 104.0, 108.0, 112.0, 116.0, 160.0, 164.0, 168.0, 172.0, 176.0]
     assert len(_agrupar_lineas_equiespaciadas(lineas)) == 2
 
 
 def test_silencio_entre_cabezas():
-    from superponer import Pentagrama, _hay_silencio_entre
+    from atril.superponer import Pentagrama, _hay_silencio_entre
     pent = Pentagrama(pagina=0, arriba=139.3, abajo=154.9, x0=50, x1=800)
     corchea = [(ord("‰"), "OpusStd", 136.4, 147.1)]
     assert _hay_silencio_entre(corchea, pent, 126.9, 145.7)
@@ -354,7 +354,7 @@ def test_nota_fija_conserva_posicion():
         pytest.skip("Datos de victoria no disponibles")
 
     from music21 import converter
-    from superponer import analizar, colocar_nombres, NotaColocada
+    from atril.superponer import analizar, colocar_nombres, NotaColocada
 
     partitura = converter.parse(str(_VICTORIA_MXL))
     analisis = analizar(_VICTORIA_PDF, partitura)
@@ -393,7 +393,7 @@ def test_vecina_evita_nota_fija():
         pytest.skip("Datos de victoria no disponibles")
 
     from music21 import converter
-    from superponer import analizar, colocar_nombres
+    from atril.superponer import analizar, colocar_nombres
     import pymupdf
 
     partitura = converter.parse(str(_VICTORIA_MXL))
@@ -427,7 +427,7 @@ def test_vecina_evita_nota_fija():
 def test_pitch_por_paso_en_acorde():
     # Las comprobaciones sobre una cabeza de nota deben funcionar también dentro de un acorde
     from music21 import chord, clef, stream
-    from superponer import _nombre_por_paso, _pitch_por_paso
+    from atril.superponer import _nombre_por_paso, _pitch_por_paso
     compas = stream.Measure()
     compas.append(clef.BassClef())
     acorde = chord.Chord(["C3", "E-3", "G3"])
@@ -445,7 +445,7 @@ def test_pitch_por_paso_en_acorde():
 
 def _par_sintetico(id_, linea, xc, y, paso=0, texto="Do", estado="ok", motivo=""):
     """Crea un par (NotaColocada, Cabeza) sintético para tests de acordes."""
-    from superponer import NotaColocada, Cabeza
+    from atril.superponer import NotaColocada, Cabeza
     ancho = 6.0
     x0 = xc - ancho / 2
     x1 = xc + ancho / 2
@@ -461,7 +461,7 @@ def _par_sintetico(id_, linea, xc, y, paso=0, texto="Do", estado="ok", motivo=""
 
 def test_detectar_acordes_dos_cabezas_mismo_tallo():
     """Dos cabezas muy próximas en x (mismo tallo) → acorde."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     # Δxc = 1.5 pt ≤ 0.35 × 6 = 2.1 pt → criterio (a), forman acorde
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4, texto="Sol")
     n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, texto="Mi")
@@ -474,7 +474,7 @@ def test_detectar_acordes_dos_cabezas_mismo_tallo():
 
 def test_detectar_acordes_segunda_cabeza_desplazada():
     """Acorde de segunda: cabeza desplazada ~0.9 ancho + Δpaso==1 → acorde."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     # Δxc = 5.5 pt ∈ [0.75×6=4.5, 1.05×6=6.3] y Δpaso=1 → criterio (b)
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
     n2, h2 = _par_sintetico(1, 1, xc=105.5, y=54.0, paso=3, texto="Re")
@@ -486,7 +486,7 @@ def test_detectar_acordes_segunda_cabeza_desplazada():
 
 def test_detectar_acordes_notas_consecutivas_no_acorde():
     """Dos notas con mucha separación x en el mismo pentagrama NO forman acorde."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     # Δxc = 50 pt >> 1.15 × 6 = 6.9 pt
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
     n2, h2 = _par_sintetico(1, 1, xc=150.0, y=54.0, paso=3, texto="Re")
@@ -498,7 +498,7 @@ def test_detectar_acordes_notas_consecutivas_no_acorde():
 
 def test_detectar_acordes_distinto_pentagrama_no_acorde():
     """Cabezas en líneas distintas con x similar NO forman acorde."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0,  paso=2, texto="Do")
     n2, h2 = _par_sintetico(1, 2, xc=100.5, y=200.0, paso=3, texto="Re")
     notas = [n1, n2]
@@ -509,7 +509,7 @@ def test_detectar_acordes_distinto_pentagrama_no_acorde():
 
 def test_detectar_acordes_campo_en_a_dict():
     """a_dict() incluye el campo 'acorde'."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4)
     n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2)
     _detectar_acordes([n1, n2], [h1, h2])
@@ -523,7 +523,7 @@ def test_detectar_acordes_campo_en_a_dict():
 
 def test_detectar_acordes_motivo_acorde():
     """Una nota ok en un acorde pasa a dudosa con motivo 'Acorde:…'."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4, estado="ok")
     n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, estado="ok")
     _detectar_acordes([n1, n2], [h1, h2])
@@ -534,7 +534,7 @@ def test_detectar_acordes_motivo_acorde():
 
 def test_detectar_acordes_deducida_conserva_motivo():
     """Una nota 'deducida' en un acorde conserva su estado y motivo originales."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4,
                              estado="deducida", motivo="Audiveris no la leyó")
     n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, estado="ok")
@@ -546,7 +546,7 @@ def test_detectar_acordes_deducida_conserva_motivo():
 
 def test_detectar_acordes_orden_agudo_grave():
     """Las notas del acorde quedan con el mismo acorde; la de y menor es la más aguda."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     # n1 es más grave (y mayor), n2 es más aguda (y menor)
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=70.0, paso=2, texto="Do")   # grave
     n2, h2 = _par_sintetico(1, 1, xc=101.5, y=50.0, paso=4, texto="Sol")  # agudo
@@ -558,7 +558,7 @@ def test_detectar_acordes_orden_agudo_grave():
 
 def test_detectar_acordes_segunda_sin_paso_adyacente_no_acorde():
     """Segunda desplazada pero Δpaso > 1 no forma acorde."""
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     # Δxc = 5.5 ∈ [4.5, 6.9] pero Δpaso=3 → criterio (b) no se cumple
     n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
     n2, h2 = _par_sintetico(1, 1, xc=105.5, y=54.0, paso=5, texto="Sol")
@@ -573,7 +573,7 @@ def test_detectar_acordes_semicorcheas_consecutivas_no_acorde():
 
     9 pt > 1.15 × 6 = 6.9 pt → no cumplen ninguno de los dos criterios.
     """
-    from superponer import _detectar_acordes
+    from atril.superponer import _detectar_acordes
     pasos  = [6, 7, 6, 5, 4]   # La Si La Sol Fa (aproximado)
     notas  = []
     cabezas = []
@@ -591,7 +591,7 @@ def test_detectar_acordes_semicorcheas_consecutivas_no_acorde():
 @requiere_datos("victoria.pdf", "victoria_omr.mxl")
 def test_victoria_sin_acordes(victoria_partitura):
     """victoria.pdf no contiene acordes: ninguna nota debe tener acorde asignado."""
-    from superponer import analizar
+    from atril.superponer import analizar
     analisis = analizar(_VICTORIA_PDF, victoria_partitura)
     notas_con_acorde = [n for n in analisis.notas if n.acorde is not None]
     assert notas_con_acorde == [], (
@@ -609,7 +609,7 @@ def test_victoria_sin_acordes(victoria_partitura):
 @requiere_datos("dulce.pdf", "dulce_omr.mxl")
 def test_dulce_sin_acordes(dulce_partitura):
     """dulce.pdf no contiene acordes: ninguna nota debe tener acorde asignado."""
-    from superponer import analizar
+    from atril.superponer import analizar
     analisis = analizar(_DULCE_PDF, dulce_partitura)
     notas_con_acorde = [n for n in analisis.notas if n.acorde is not None]
     assert notas_con_acorde == [], (

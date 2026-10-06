@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from config import HerramientaNoEncontrada, buscar_ejecutable
+from .config import HerramientaNoEncontrada, buscar_ejecutable
 
 # Directorio raíz del proyecto (donde vive este módulo)
 _RAIZ = Path(__file__).parent

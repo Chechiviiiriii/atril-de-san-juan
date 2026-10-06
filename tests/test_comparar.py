@@ -26,20 +26,20 @@ _SINTETICA_PDF = _DATOS / "sintetica.pdf"
 # ---------------------------------------------------------------------------
 
 def test_son_compatibles_iguales():
-    from comparar import _son_compatibles  # type: ignore[attr-defined]
+    from herramientas.comparar import _son_compatibles  # type: ignore[attr-defined]
     assert _son_compatibles("Do", "Do") is True
     assert _son_compatibles("Mib", "Mib") is True
     assert _son_compatibles("·", "·") is True
 
 
 def test_son_compatibles_ligada_vs_nombre():
-    from comparar import _son_compatibles  # type: ignore[attr-defined]
+    from herramientas.comparar import _son_compatibles  # type: ignore[attr-defined]
     assert _son_compatibles("·", "Re") is True
     assert _son_compatibles("Sol", "·") is True
 
 
 def test_son_compatibles_distintos():
-    from comparar import _son_compatibles  # type: ignore[attr-defined]
+    from herramientas.comparar import _son_compatibles  # type: ignore[attr-defined]
     assert _son_compatibles("Do", "Re") is False
     assert _son_compatibles("Fa#", "Fab") is False
 
@@ -51,7 +51,7 @@ def test_son_compatibles_distintos():
 @requiere_datos("victoria_numerada.pdf")
 def test_extraer_nombres_referencia_no_vacia():
     """La referencia numerada a mano tiene nombres de nota."""
-    from comparar import extraer_nombres
+    from herramientas.comparar import extraer_nombres
     nombres = extraer_nombres(_VICTORIA_NUM, es_referencia=True)
     assert len(nombres) > 0, "No se extrajo ningún nombre de la referencia"
 
@@ -60,7 +60,7 @@ def test_extraer_nombres_referencia_no_vacia():
 def test_extraer_nombres_son_validos():
     """Los nombres extraídos son nombres de nota válidos o '·'."""
     import re
-    from comparar import extraer_nombres, MARCA_LIGADA
+    from herramientas.comparar import extraer_nombres, MARCA_LIGADA
     pat = re.compile(r"^(Do|Re|Mi|Fa|Sol|La|Si)(##?|bb?|#|b)?$", re.IGNORECASE)
     nombres = extraer_nombres(_VICTORIA_NUM, es_referencia=True)
     invalidos = [n for n in nombres if n != MARCA_LIGADA and not pat.match(n)]
@@ -74,7 +74,7 @@ def test_extraer_nombres_son_validos():
 def test_comparar_coincidencia_perfecta(tmp_path):
     """comparar() con dos PDFs idénticos debe dar 100% de coincidencia."""
     import pymupdf
-    from comparar import comparar
+    from herramientas.comparar import comparar
 
     # Crear un PDF mínimo con texto de nota
     salida = tmp_path / "test_notas.pdf"
@@ -99,7 +99,7 @@ def test_comparar_coincidencia_perfecta(tmp_path):
 def test_comparar_referencia_vacia(tmp_path):
     """comparar() con referencia sin nombres devuelve 0% y aviso."""
     import pymupdf
-    from comparar import comparar
+    from herramientas.comparar import comparar
 
     salida = tmp_path / "generado.pdf"
     referencia = tmp_path / "referencia_vacia.pdf"
@@ -117,7 +117,7 @@ def test_comparar_referencia_vacia(tmp_path):
 
 def test_comparar_con_ligadas(tmp_path):
     """'·' en generado se acepta como coincidencia con el nombre en la referencia."""
-    from comparar import _son_compatibles, MARCA_LIGADA
+    from herramientas.comparar import _son_compatibles, MARCA_LIGADA
     # Prueba unitaria de la lógica de compatibilidad
     assert _son_compatibles(MARCA_LIGADA, "La") is True
     assert _son_compatibles("La", MARCA_LIGADA) is True
@@ -130,7 +130,7 @@ def test_comparar_referencia_tiene_185_notas():
     La extracción puede variar ligeramente por cómo PyMuPDF agrupa los spans
     en documentos de distinto origen (MuseScore vs nuestro overlay).
     """
-    from comparar import extraer_nombres
+    from herramientas.comparar import extraer_nombres
     nombres = extraer_nombres(_VICTORIA_NUM, es_referencia=True)
     # findall extrae todos los nombres de nota presentes en cada span
     assert 130 <= len(nombres) <= 220, (
