@@ -55,6 +55,7 @@ const estado = {
 
     // -- Flujo empalme --
     archivosEmpalme: [],   // [{id, titulo, archivo, paginas, sha256, miniatura}]
+    empalmeIdResultado:  null,
     empalmeDescargaUrl:  null,
     empalmeDescargaNombre: null,
 };
@@ -1888,16 +1889,21 @@ function mostrarPasoListo(descargaUrl, nombreArchivo, flujo) {
     }
 }
 
+// Id del PDF que muestra la pantalla final: el empalme o la partitura con nombres
+function idPdfListo() {
+    return estado.flujo === 'empalme' ? estado.empalmeIdResultado : estado.idTrabajo;
+}
+
 $('btn-guardar-pdf').addEventListener('click', () => {
     if (typeof window.pywebview !== 'undefined') {
-        window.pywebview.api.guardar_pdf(estado.idTrabajo)
+        window.pywebview.api.guardar_pdf(idPdfListo())
             .catch(err => console.error('guardar_pdf error:', err));
     }
 });
 
 $('btn-abrir-pdf').addEventListener('click', () => {
     if (typeof window.pywebview !== 'undefined') {
-        window.pywebview.api.abrir_pdf(estado.idTrabajo)
+        window.pywebview.api.abrir_pdf(idPdfListo())
             .catch(err => console.error('abrir_pdf error:', err));
     }
 });
@@ -1920,6 +1926,7 @@ function reiniciar() {
     estado.descargaUrl      = null;
     estado.descargaNombre   = null;
     estado.archivosEmpalme  = [];
+    estado.empalmeIdResultado = null;
     estado.empalmeDescargaUrl = null;
     estado.empalmeDescargaNombre = null;
     scrollPags.innerHTML = '';
@@ -2160,6 +2167,7 @@ $('btn-unir').addEventListener('click', () => {
     .then(d => {
         $('empalme-procesando').style.display = 'none';
         if (d.error) { alert('Error al unir: ' + d.error); $('empalme-lista-wrap').style.display = ''; return; }
+        estado.empalmeIdResultado   = d.id;
         estado.empalmeDescargaUrl   = d.descarga;
         estado.empalmeDescargaNombre = d.nombre;
         mostrarPasoListo(d.descarga, d.nombre, 'empalme');

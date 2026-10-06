@@ -20,6 +20,7 @@ import sys
 import threading
 import webbrowser
 from pathlib import Path
+from typing import Optional
 
 # Datos de la aplicación (único punto de definición; los mismos que usa el instalador)
 # Si el empaquetador pone empaquetado/datos_app.json, se usa como fuente primaria.
@@ -137,6 +138,16 @@ def iniciar_servidor(puerto: int) -> object:
 # API JS para pywebview
 # ---------------------------------------------------------------------------
 
+def _pdf_final(id_: str) -> Optional[Path]:
+    """PDF final de un trabajo de nombres o de un empalme, según el id."""
+    from interfaz.servidor import _get_trabajo, _get_resultado_empalme
+
+    for origen in (_get_trabajo(id_), _get_resultado_empalme(id_)):
+        if origen is not None and origen.pdf_final is not None:
+            return origen.pdf_final
+    return None
+
+
 class _ApiJS:
     """Métodos expuestos al JavaScript de la ventana pywebview."""
 
@@ -144,13 +155,12 @@ class _ApiJS:
         """Abre el diálogo nativo «Guardar como» y copia el PDF final."""
         try:
             import webview
-            from interfaz.servidor import _get_trabajo
 
-            trabajo = _get_trabajo(id_trabajo)
-            if trabajo is None or trabajo.pdf_final is None:
+            pdf_final = _pdf_final(id_trabajo)
+            if pdf_final is None:
                 return False
 
-            nombre_sugerido = trabajo.pdf_final.name
+            nombre_sugerido = pdf_final.name
             ventanas = webview.windows
             if not ventanas:
                 return False
@@ -164,7 +174,7 @@ class _ApiJS:
                 return False
 
             destino = resultado[0] if isinstance(resultado, (list, tuple)) else resultado
-            shutil.copy2(str(trabajo.pdf_final), str(destino))
+            shutil.copy2(str(pdf_final), str(destino))
             return True
 
         except Exception:
@@ -184,13 +194,12 @@ class _ApiJS:
             pass
 
     def abrir_pdf(self, id_trabajo: str) -> None:
-        """Abre el PDF final de un trabajo con el visor del sistema."""
+        """Abre el PDF final de un trabajo o empalme con el visor del sistema."""
         try:
-            from interfaz.servidor import _get_trabajo
-            trabajo = _get_trabajo(id_trabajo)
-            if trabajo is None or trabajo.pdf_final is None:
+            pdf_final = _pdf_final(id_trabajo)
+            if pdf_final is None:
                 return
-            ruta = str(trabajo.pdf_final)
+            ruta = str(pdf_final)
             import os
             if sys.platform == "win32":
                 os.startfile(ruta)

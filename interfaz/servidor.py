@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import sys
 import tempfile
 import threading
@@ -852,6 +853,8 @@ class _Manejador(BaseHTTPRequestHandler):
 
         ids: list[str] = datos.get("ids", [])
         nombre_salida: str = datos.get("nombre", "Marchas empalmadas")
+        # Sin barras ni caracteres que Windows no admite en un nombre de archivo
+        nombre_salida = re.sub(r'[\\/:*?"<>|]', "-", nombre_salida).strip() or "Marchas empalmadas"
         if not nombre_salida.lower().endswith(".pdf"):
             nombre_salida += ".pdf"
 
@@ -881,6 +884,7 @@ class _Manejador(BaseHTTPRequestHandler):
             resultado.pdf_final = ruta_salida
 
             self._json(200, {
+                "id": id_res,
                 "descarga": f"/api/empalme/resultado/{id_res}/pdf",
                 "nombre": nombre_salida,
             })
