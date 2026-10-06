@@ -254,6 +254,12 @@ abierto.
 
 ## Licencias y créditos
 
+Copyright © 2026 José María Funes Jiménez. El código de Atril de San Juan se distribuye bajo la
+licencia **GNU AGPL-3.0** (ver [LICENSE](LICENSE)): puedes usarlo, estudiarlo y modificarlo, pero
+cualquier versión que se distribuya o se ofrezca como servicio debe publicar su código con la misma
+licencia y conservar la autoría original. El escudo y el cartel de la banda no están cubiertos por
+esta licencia.
+
 - **Atril de San Juan**: José María Funes Jiménez, para la A.M. Stmo. Cristo de la Salud.
 - **Audiveris** (lector de partituras) y **PyMuPDF** (lectura y escritura de PDF) se
   distribuyen bajo **AGPL-3.0**; por eso el código fuente de este programa está disponible en
