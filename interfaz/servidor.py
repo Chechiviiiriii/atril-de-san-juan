@@ -6,7 +6,10 @@ Gestiona trabajos de procesamiento en hilos de fondo.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import platform
 import sys
 import tempfile
 import threading
@@ -25,11 +28,58 @@ if str(_RAIZ) not in sys.path:
 _WEB = Path(__file__).parent / "web"
 
 # ---------------------------------------------------------------------------
-# Gestión de trabajos
+# Preferencias de usuario (tutoriales vistos, etc.)
+# ---------------------------------------------------------------------------
+
+# Sobreescribible en tests para aislar el archivo de preferencias
+_ruta_prefs_override: Optional[Path] = None
+
+
+def _ruta_preferencias() -> Path:
+    """Devuelve la ruta al archivo JSON de preferencias del usuario."""
+    if _ruta_prefs_override is not None:
+        return _ruta_prefs_override
+    if platform.system() == "Windows":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return base / "Atril de San Juan" / "preferencias.json"
+    else:
+        return Path.home() / ".config" / "atril-de-san-juan" / "preferencias.json"
+
+
+def _leer_preferencias() -> dict:
+    """Lee las preferencias desde disco; devuelve estructura por defecto si no existe."""
+    try:
+        return json.loads(_ruta_preferencias().read_text(encoding="utf-8"))
+    except Exception:
+        return {"tutoriales_vistos": []}
+
+
+def _guardar_preferencias(datos: dict) -> None:
+    """Persiste las preferencias en disco."""
+    ruta = _ruta_preferencias()
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(
+        json.dumps(datos, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Metadatos de la aplicación (importados desde app.py para ser fuente única)
+# ---------------------------------------------------------------------------
+try:
+    from app import NOMBRE_APP as _NOMBRE_APP, VERSION as _VERSION, URL_REPO as _URL_REPO
+except Exception:
+    _NOMBRE_APP = "Atril de San Juan"
+    _VERSION    = "0.1.0"
+    _URL_REPO   = "https://github.com/Chechiviiiriii/atril-de-san-juan"
+
+# ---------------------------------------------------------------------------
+# Gestión de trabajos de nombrado
 # ---------------------------------------------------------------------------
 
 class _Trabajo:
-    """Estado de un trabajo de procesamiento."""
+    """Estado de un trabajo de procesamiento de nombres."""
 
     def __init__(self, id: str) -> None:
         self.id = id
@@ -68,12 +118,92 @@ def _get_trabajo(id_trabajo: str) -> Optional[_Trabajo]:
         return _trabajos.get(id_trabajo)
 
 
+# ---------------------------------------------------------------------------
+# Gestión de archivos de empalme
+# ---------------------------------------------------------------------------
+
+class _ArchivoEmpalme:
+    """Un PDF subido para empalmar."""
+
+    def __init__(self, id: str) -> None:
+        self.id = id
+        self.titulo: str = ""
+        self.nombre_archivo: str = ""
+        self.paginas: int = 0
+        self.sha256: str = ""
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.directorio = Path(self._tmpdir.name)
+        self.ruta_pdf: Optional[Path] = None
+        self.ruta_miniatura: Optional[Path] = None
+
+    def limpiar(self) -> None:
+        try:
+            self._tmpdir.cleanup()
+        except Exception:
+            pass
+
+
+class _ResultadoEmpalme:
+    """PDF resultante de un empalme."""
+
+    def __init__(self, id: str) -> None:
+        self.id = id
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.directorio = Path(self._tmpdir.name)
+        self.pdf_final: Optional[Path] = None
+        self.nombre_archivo: Optional[str] = None
+
+    def limpiar(self) -> None:
+        try:
+            self._tmpdir.cleanup()
+        except Exception:
+            pass
+
+
+_archivos_empalme: dict[str, _ArchivoEmpalme] = {}
+_resultados_empalme: dict[str, _ResultadoEmpalme] = {}
+_lock_empalme = threading.Lock()
+
+
+def _crear_archivo_empalme() -> tuple[str, _ArchivoEmpalme]:
+    id_ = str(uuid.uuid4())
+    arch = _ArchivoEmpalme(id_)
+    with _lock_empalme:
+        _archivos_empalme[id_] = arch
+    return id_, arch
+
+
+def _get_archivo_empalme(id_: str) -> Optional[_ArchivoEmpalme]:
+    with _lock_empalme:
+        return _archivos_empalme.get(id_)
+
+
+def _crear_resultado_empalme() -> tuple[str, _ResultadoEmpalme]:
+    id_ = str(uuid.uuid4())
+    res = _ResultadoEmpalme(id_)
+    with _lock_empalme:
+        _resultados_empalme[id_] = res
+    return id_, res
+
+
+def _get_resultado_empalme(id_: str) -> Optional[_ResultadoEmpalme]:
+    with _lock_empalme:
+        return _resultados_empalme.get(id_)
+
+
 def limpiar_todos() -> None:
-    """Elimina todos los directorios temporales de trabajos."""
+    """Elimina todos los directorios temporales."""
     with _lock_trabajos:
         for t in _trabajos.values():
             t.limpiar()
         _trabajos.clear()
+    with _lock_empalme:
+        for a in _archivos_empalme.values():
+            a.limpiar()
+        _archivos_empalme.clear()
+        for r in _resultados_empalme.values():
+            r.limpiar()
+        _resultados_empalme.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -81,11 +211,7 @@ def limpiar_todos() -> None:
 # ---------------------------------------------------------------------------
 
 def _procesar_hilo(trabajo: _Trabajo, mxl_precargado: Optional[Path] = None) -> None:
-    """Ejecuta el pipeline completo en un hilo de fondo.
-
-    Actualiza ``trabajo.estado``, ``.fase``, ``.resultado`` y ``.analisis``.
-    ``mxl_precargado`` omite el paso de OMR si se proporciona.
-    """
+    """Ejecuta el pipeline completo en un hilo de fondo."""
     try:
         import pymupdf
         import music21
@@ -206,7 +332,7 @@ class _Manejador(BaseHTTPRequestHandler):
         self.send_response(codigo)
         self.send_header("Content-Type", tipo)
         self.send_header("Content-Length", str(len(cuerpo)))
-        self.send_header("Access-Control-Allow-Origin", "http://127.0.0.1")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(cuerpo)
 
@@ -247,16 +373,40 @@ class _Manejador(BaseHTTPRequestHandler):
             self._servir_archivo(ruta_web)
             return
 
-        # API REST
+        # API info
+        if ruta == "/api/info":
+            self._json(200, {
+                "nombre": _NOMBRE_APP,
+                "version": _VERSION,
+                "url_repo": _URL_REPO,
+            })
+            return
+
+        # API preferencias
+        if ruta == "/api/preferencias":
+            self._json(200, _leer_preferencias())
+            return
+
+        # API REST — trabajos de nombres
         if ruta.startswith("/api/trabajos"):
             sub = ruta[len("/api/trabajos"):].lstrip("/")
             self._api_get(sub)
+            return
+
+        # API REST — empalme
+        if ruta.startswith("/api/empalme"):
+            sub = ruta[len("/api/empalme"):].lstrip("/")
+            self._api_empalme_get(sub)
             return
 
         self._error(404, "No encontrado.")
 
     def do_POST(self) -> None:
         ruta = self.path.split("?")[0]
+
+        if ruta == "/api/preferencias":
+            self._api_guardar_preferencias()
+            return
 
         if ruta == "/api/trabajos":
             self._api_nuevo_trabajo()
@@ -267,6 +417,17 @@ class _Manejador(BaseHTTPRequestHandler):
             if len(partes) >= 2 and partes[1] == "confirmar":
                 self._api_confirmar(partes[0])
                 return
+            if len(partes) >= 2 and partes[1] == "recolocar":
+                self._api_recolocar(partes[0])
+                return
+
+        if ruta == "/api/empalme/archivos":
+            self._api_empalme_subir()
+            return
+
+        if ruta == "/api/empalme/unir":
+            self._api_empalme_unir()
+            return
 
         self._error(404, "No encontrado.")
 
@@ -284,6 +445,43 @@ class _Manejador(BaseHTTPRequestHandler):
             self._enviar(200, datos, tipo)
         except OSError as exc:
             self._error(500, f"Error al leer {ruta.name}: {exc}")
+
+    # ------------------------------------------------------------------
+    # POST /api/preferencias
+    # ------------------------------------------------------------------
+
+    def _api_guardar_preferencias(self) -> None:
+        """Guarda las preferencias del usuario o las reinicia si se pasa reiniciar=true."""
+        longitud = int(self.headers.get("Content-Length", 0))
+        cuerpo = self.rfile.read(longitud)
+        try:
+            datos = json.loads(cuerpo.decode("utf-8")) if cuerpo else {}
+        except Exception:
+            self._error(400, "JSON inválido.")
+            return
+
+        if datos.get("reiniciar"):
+            _guardar_preferencias({"tutoriales_vistos": []})
+            self._json(200, {"ok": True, "reiniciado": True})
+            return
+
+        # Validar y normalizar
+        vistos = datos.get("tutoriales_vistos")
+        if not isinstance(vistos, list):
+            self._error(400, "El campo tutoriales_vistos debe ser una lista.")
+            return
+
+        prefs_actuales = _leer_preferencias()
+        prefs_actuales["tutoriales_vistos"] = [
+            str(p) for p in vistos if isinstance(p, str)
+        ]
+        try:
+            _guardar_preferencias(prefs_actuales)
+        except Exception as exc:
+            self._error(500, f"Error al guardar preferencias: {exc}")
+            return
+
+        self._json(200, {"ok": True})
 
     # ------------------------------------------------------------------
     # POST /api/trabajos
@@ -351,7 +549,6 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         if len(partes) == 1:
-            # GET /api/trabajos/<id>
             self._json(200, {
                 "estado": trabajo.estado,
                 "fase": trabajo.fase,
@@ -361,7 +558,6 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         if len(partes) >= 3 and partes[1] == "paginas":
-            # GET /api/trabajos/<id>/paginas/<n>.png
             nombre_pag = partes[2]
             try:
                 n = int(nombre_pag.replace(".png", "").replace(".PNG", ""))
@@ -373,31 +569,33 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         if len(partes) >= 2 and partes[1] == "pdf":
-            # GET /api/trabajos/<id>/pdf
             if trabajo.pdf_final is None or not trabajo.pdf_final.exists():
                 self._error(404, "PDF final no disponible aún.")
                 return
-            nombre_salida = trabajo.pdf_final.name
-            try:
-                from urllib.parse import quote
-                nombre_enc = quote(nombre_salida, encoding="utf-8")
-            except Exception:
-                nombre_enc = nombre_salida
-
-            datos = trabajo.pdf_final.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/pdf")
-            self.send_header("Content-Length", str(len(datos)))
-            self.send_header(
-                "Content-Disposition",
-                f"attachment; filename*=UTF-8''{nombre_enc}",
-            )
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(datos)
+            self._enviar_pdf(trabajo.pdf_final)
             return
 
         self._error(404, "Endpoint no encontrado.")
+
+    def _enviar_pdf(self, ruta: Path) -> None:
+        """Envía un PDF con cabeceras de descarga."""
+        try:
+            from urllib.parse import quote
+            nombre_enc = quote(ruta.name, encoding="utf-8")
+        except Exception:
+            nombre_enc = ruta.name
+
+        datos = ruta.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.send_header("Content-Length", str(len(datos)))
+        self.send_header(
+            "Content-Disposition",
+            f"attachment; filename*=UTF-8''{nombre_enc}",
+        )
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(datos)
 
     # ------------------------------------------------------------------
     # POST /api/trabajos/<id>/confirmar
@@ -421,21 +619,39 @@ class _Manejador(BaseHTTPRequestHandler):
             self._error(400, "JSON inválido.")
             return
 
-        correcciones: dict[str, str] = datos.get("correcciones", {})
+        correcciones: dict = datos.get("correcciones", {})
 
         try:
             from superponer import colocar_nombres, escribir_pdf
 
             analisis = trabajo.analisis
 
-            # Aplicar correcciones del usuario
+            # Aplicar correcciones del usuario (acepta formato nuevo {texto?,x?,base?,tam?}
+            # y formato antiguo string)
             for nota in analisis.notas:
                 id_str = str(nota.id)
-                if id_str in correcciones:
-                    nota.texto = correcciones[id_str]
+                if id_str not in correcciones:
+                    continue
+                corr = correcciones[id_str]
+                if isinstance(corr, str):
+                    # Formato antiguo: solo texto
+                    nota.texto = corr
                     nota.estado = "confirmada"
+                else:
+                    # Formato nuevo: objeto con campos opcionales
+                    if "texto" in corr:
+                        nota.texto = corr["texto"]
+                        nota.estado = "confirmada"
+                    if corr.get("fija") or "x" in corr:
+                        nota.fija = True
+                        if "x" in corr:
+                            nota.x = float(corr["x"])
+                        if "base" in corr:
+                            nota.base = float(corr["base"])
+                        if "tam" in corr:
+                            nota.tam = float(corr["tam"])
 
-            # Recalcular posiciones con los textos actualizados
+            # Recalcular posiciones respetando notas fijas
             colocar_nombres(analisis)
 
             # Escribir PDF final (todas las notas en negro)
@@ -454,17 +670,231 @@ class _Manejador(BaseHTTPRequestHandler):
         except Exception as exc:
             self._error(500, f"Error al generar el PDF: {exc}")
 
+    # ------------------------------------------------------------------
+    # POST /api/trabajos/<id>/recolocar
+    # ------------------------------------------------------------------
+
+    def _api_recolocar(self, id_trabajo: str) -> None:
+        """Recomputa posiciones con las correcciones actuales y las devuelve."""
+        trabajo = _get_trabajo(id_trabajo)
+        if trabajo is None:
+            self._error(404, f"Trabajo no encontrado: {id_trabajo}")
+            return
+
+        if trabajo.estado != "listo" or trabajo.analisis is None:
+            self._error(400, "El trabajo no está listo.")
+            return
+
+        longitud = int(self.headers.get("Content-Length", 0))
+        cuerpo = self.rfile.read(longitud)
+        try:
+            datos = json.loads(cuerpo.decode("utf-8"))
+        except Exception:
+            self._error(400, "JSON inválido.")
+            return
+
+        correcciones: dict = datos.get("correcciones", {})
+
+        try:
+            from superponer import colocar_nombres
+
+            analisis = trabajo.analisis
+
+            # Aplicar correcciones (misma lógica que en confirmar)
+            for nota in analisis.notas:
+                id_str = str(nota.id)
+                if id_str not in correcciones:
+                    # Si no hay corrección, asegurarse de que no esté marcada como fija
+                    # salvo que ya lo estuviera de una llamada anterior
+                    continue
+                corr = correcciones[id_str]
+                if isinstance(corr, str):
+                    nota.texto = corr
+                    nota.fija = False
+                else:
+                    if "texto" in corr:
+                        nota.texto = corr["texto"]
+                    if corr.get("fija") or "x" in corr:
+                        nota.fija = True
+                        if "x" in corr:
+                            nota.x = float(corr["x"])
+                        if "base" in corr:
+                            nota.base = float(corr["base"])
+                        if "tam" in corr:
+                            nota.tam = float(corr["tam"])
+                    else:
+                        nota.fija = False
+
+            # Recalcular posiciones
+            colocar_nombres(analisis)
+
+            # Devolver posiciones de todas las notas
+            posiciones = [
+                {
+                    "id": n.id,
+                    "x": n.x,
+                    "base": n.base,
+                    "tam": n.tam,
+                    "sin_hueco": n.sin_hueco,
+                }
+                for n in analisis.notas
+                if n.x is not None
+            ]
+            self._json(200, {"posiciones": posiciones})
+
+        except Exception as exc:
+            self._error(500, f"Error al recolocar: {exc}")
+
+    # ------------------------------------------------------------------
+    # API Empalme
+    # ------------------------------------------------------------------
+
+    def _api_empalme_get(self, sub: str) -> None:
+        """GET /api/empalme/..."""
+        partes = sub.split("/")
+
+        # GET /api/empalme/archivos/<id>/miniatura
+        if len(partes) >= 3 and partes[0] == "archivos" and partes[2] == "miniatura":
+            arch = _get_archivo_empalme(partes[1])
+            if arch is None:
+                self._error(404, "Archivo no encontrado.")
+                return
+            if arch.ruta_miniatura and arch.ruta_miniatura.exists():
+                self._servir_archivo(arch.ruta_miniatura)
+            else:
+                self._error(404, "Miniatura no disponible.")
+            return
+
+        # GET /api/empalme/resultado/<id>/pdf
+        if len(partes) >= 3 and partes[0] == "resultado" and partes[2] == "pdf":
+            res = _get_resultado_empalme(partes[1])
+            if res is None:
+                self._error(404, "Resultado no encontrado.")
+                return
+            if res.pdf_final and res.pdf_final.exists():
+                self._enviar_pdf(res.pdf_final)
+            else:
+                self._error(404, "PDF final no disponible.")
+            return
+
+        self._error(404, "Endpoint de empalme no encontrado.")
+
+    def _api_empalme_subir(self) -> None:
+        """POST /api/empalme/archivos — Sube un PDF para empalmar."""
+        longitud = int(self.headers.get("Content-Length", 0))
+        if longitud == 0:
+            self._error(400, "No se recibió ningún archivo.")
+            return
+
+        nombre_enc = self.headers.get("X-Nombre-Archivo", "marcha.pdf")
+        try:
+            nombre = unquote(nombre_enc, encoding="utf-8")
+        except Exception:
+            nombre = nombre_enc
+
+        if not nombre.lower().endswith(".pdf"):
+            self._error(400, "Solo se aceptan archivos PDF.")
+            return
+
+        cuerpo = self.rfile.read(longitud)
+        if not cuerpo.startswith(b"%PDF"):
+            self._error(400, "El archivo no parece un PDF válido.")
+            return
+
+        id_, arch = _crear_archivo_empalme()
+        arch.nombre_archivo = nombre
+        arch.sha256 = hashlib.sha256(cuerpo).hexdigest()
+
+        ruta_pdf = arch.directorio / nombre
+        ruta_pdf.write_bytes(cuerpo)
+        arch.ruta_pdf = ruta_pdf
+
+        try:
+            import pymupdf
+            from empalme import titulo_pdf, contar_paginas
+
+            arch.titulo = titulo_pdf(ruta_pdf)
+            arch.paginas = contar_paginas(ruta_pdf)
+
+            # Generar miniatura de la primera página
+            doc = pymupdf.open(str(ruta_pdf))
+            if doc.page_count > 0:
+                page = doc[0]
+                mat = pymupdf.Matrix(0.5, 0.5)
+                pix = page.get_pixmap(matrix=mat)
+                ruta_min = arch.directorio / "miniatura.png"
+                pix.save(str(ruta_min))
+                arch.ruta_miniatura = ruta_min
+            doc.close()
+
+        except Exception as exc:
+            arch.titulo = Path(nombre).stem
+            arch.paginas = 0
+
+        self._json(200, {
+            "id": id_,
+            "titulo": arch.titulo,
+            "archivo": nombre,
+            "paginas": arch.paginas,
+            "sha256": arch.sha256,
+            "miniatura": f"/api/empalme/archivos/{id_}/miniatura",
+        })
+
+    def _api_empalme_unir(self) -> None:
+        """POST /api/empalme/unir — Une los PDFs en el orden indicado."""
+        longitud = int(self.headers.get("Content-Length", 0))
+        cuerpo = self.rfile.read(longitud)
+        try:
+            datos = json.loads(cuerpo.decode("utf-8"))
+        except Exception:
+            self._error(400, "JSON inválido.")
+            return
+
+        ids: list[str] = datos.get("ids", [])
+        nombre_salida: str = datos.get("nombre", "Marchas empalmadas")
+        if not nombre_salida.lower().endswith(".pdf"):
+            nombre_salida += ".pdf"
+
+        if len(ids) < 2:
+            self._error(400, "Se necesitan al menos 2 marchas para empalmar.")
+            return
+
+        archivos: list[_ArchivoEmpalme] = []
+        for id_ in ids:
+            arch = _get_archivo_empalme(id_)
+            if arch is None:
+                self._error(404, f"Archivo no encontrado: {id_}")
+                return
+            if arch.ruta_pdf is None or not arch.ruta_pdf.exists():
+                self._error(404, f"Archivo PDF no disponible: {id_}")
+                return
+            archivos.append(arch)
+
+        try:
+            from empalme import unir_pdfs
+
+            id_res, resultado = _crear_resultado_empalme()
+            resultado.nombre_archivo = nombre_salida
+
+            ruta_salida = resultado.directorio / nombre_salida
+            unir_pdfs([a.ruta_pdf for a in archivos], ruta_salida)
+            resultado.pdf_final = ruta_salida
+
+            self._json(200, {
+                "descarga": f"/api/empalme/resultado/{id_res}/pdf",
+                "nombre": nombre_salida,
+            })
+
+        except Exception as exc:
+            self._error(500, f"Error al unir los PDFs: {exc}")
+
 
 # ---------------------------------------------------------------------------
 # Función de inicio
 # ---------------------------------------------------------------------------
 
 def iniciar(host: str = "127.0.0.1", puerto: int = 0) -> ThreadingHTTPServer:
-    """Crea y arranca el servidor HTTP en un hilo de fondo.
-
-    Si ``puerto`` es 0, se elige automáticamente un puerto libre.
-    Devuelve el servidor para poder detenerlo con ``servidor.shutdown()``.
-    """
+    """Crea y arranca el servidor HTTP en un hilo de fondo."""
     servidor = ThreadingHTTPServer((host, puerto), _Manejador)
     hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
     hilo.start()

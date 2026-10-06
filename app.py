@@ -21,8 +21,29 @@ import threading
 import webbrowser
 from pathlib import Path
 
-# Nombre de la aplicación (único punto de definición)
-NOMBRE_APP: str = "pdf2notas"
+# Datos de la aplicación (único punto de definición; los mismos que usa el instalador)
+# Si el empaquetador pone empaquetado/datos_app.json, se usa como fuente primaria.
+def _leer_datos_app() -> tuple[str, str, str]:
+    """Lee nombre, versión y URL del repo desde empaquetado/datos_app.json si existe."""
+    import json as _json
+    ruta_json = Path(__file__).parent / "empaquetado" / "datos_app.json"
+    if ruta_json.exists():
+        try:
+            d = _json.loads(ruta_json.read_text(encoding="utf-8"))
+            return (
+                d.get("nombre", "Atril de San Juan"),
+                d.get("version", "0.1.0"),
+                d.get("url_fuente") or d.get("url_repo") or "https://github.com/Chechiviiiriii/atril-de-san-juan",
+            )
+        except Exception:
+            pass
+    return (
+        "Atril de San Juan",
+        "0.1.0",
+        "https://github.com/Chechiviiiriii/atril-de-san-juan",
+    )
+
+NOMBRE_APP, VERSION, URL_REPO = _leer_datos_app()
 
 # Raíz del proyecto
 _RAIZ = Path(__file__).parent
@@ -148,6 +169,19 @@ class _ApiJS:
 
         except Exception:
             return False
+
+    def abrir_enlace(self, url: str) -> None:
+        """Abre una URL externa en el navegador predeterminado del sistema.
+
+        Solo acepta URLs del repositorio oficial para evitar uso como proxy.
+        """
+        _PREFIX = "https://github.com/Chechiviiiriii/"
+        if not isinstance(url, str) or not url.startswith(_PREFIX):
+            return
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
 
     def abrir_pdf(self, id_trabajo: str) -> None:
         """Abre el PDF final de un trabajo con el visor del sistema."""

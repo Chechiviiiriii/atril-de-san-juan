@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from config import HerramientaNoEncontrada, buscar_ejecutable
@@ -40,6 +41,12 @@ class ErrorOMR(Exception):
 def buscar_audiveris(config: dict) -> Path:
     """Localiza el ejecutable de Audiveris.
 
+    Orden de búsqueda:
+    1. Cuando la aplicación está empaquetada (frozen): ``<dir_exe>/audiveris/Audiveris.exe``.
+    2. Ruta explícita de config.toml (si está configurada).
+    3. ``shutil.which`` para cada nombre en el PATH.
+    4. Rutas típicas de instalación.
+
     Args:
         config: Diccionario de configuración cargado con ``cargar_config()``.
 
@@ -49,6 +56,12 @@ def buscar_audiveris(config: dict) -> Path:
     Raises:
         HerramientaNoEncontrada: Si no se encuentra Audiveris.
     """
+    # 1. Búsqueda en la carpeta de la instalación (cuando está empaquetado)
+    if getattr(sys, "frozen", False):
+        bundled = Path(sys.executable).parent / "audiveris" / "Audiveris.exe"
+        if bundled.exists():
+            return bundled
+
     return buscar_ejecutable(
         ruta_config=config.get("rutas", {}).get("audiveris", ""),
         nombres_path=_NOMBRES_PATH_AUDIVERIS,

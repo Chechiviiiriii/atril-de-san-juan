@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pdf2notas</title>
+<title>Atril de San Juan</title>
 <link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="guia.css">
 </head>
 <body>
 
@@ -20,25 +21,14 @@
          onerror="this.src='img/escudo.png';this.classList.add('escudo-cabecera-blanco');this.onerror=function(){this.style.display='none'}">
 
     <div class="cabecera-marca">
-      <span class="nombre-app">pdf2notas</span>
-      <span class="subtitulo-banda">A.M. Stmo. Cristo de la Salud</span>
+      <button class="cabecera-marca-btn" id="btn-inicio-cabecera" type="button" title="Ir al inicio">
+        <span class="nombre-app" id="cabecera-nombre-app">Atril de San Juan</span>
+        <span class="subtitulo-banda">A.M. Stmo. Cristo de la Salud · Alcalá la Real</span>
+      </button>
     </div>
 
-    <nav class="indicador-pasos" aria-label="Pasos">
-      <span class="paso-ind activo" data-paso="1">
-        <span class="paso-num">1</span>
-        <span class="paso-nombre">Subir</span>
-      </span>
-      <span class="paso-sep" aria-hidden="true">·</span>
-      <span class="paso-ind" data-paso="2">
-        <span class="paso-num">2</span>
-        <span class="paso-nombre">Revisar</span>
-      </span>
-      <span class="paso-sep" aria-hidden="true">·</span>
-      <span class="paso-ind" data-paso="3">
-        <span class="paso-num">3</span>
-        <span class="paso-nombre">Descargar</span>
-      </span>
+    <nav class="indicador-pasos" id="indicador-pasos" aria-label="Pasos">
+      <!-- Llenado dinámicamente por JS según el flujo activo -->
     </nav>
   </div>
 </header>
@@ -49,45 +39,90 @@
 <main class="app-main">
 
   <!-- ====================================================
-       PASO 1 — SUBIR
+       INICIO — Pantalla de selección de función
        ==================================================== -->
-  <section id="paso-subir" class="paso activo" aria-label="Subir partitura">
-    <!-- Fondo hero -->
+  <section id="paso-inicio" class="paso activo" aria-label="Inicio">
     <div class="hero-imagen" id="hero-imagen"></div>
     <div class="hero-oscuro"></div>
 
-    <div class="paso-subir-contenido">
+    <div class="inicio-contenido">
       <!-- Escudo grande -->
-      <img id="escudo-grande"
+      <img id="escudo-inicio"
            src="img/escudo_transparente.png"
            class="escudo-grande"
            alt=""
            onerror="this.src='img/escudo.png';this.classList.add('escudo-grande-blanco');this.onerror=function(){this.style.display='none'}">
 
-      <!-- Cabecera de la banda -->
       <div class="cabecera-banda">
-        <span class="banda-titulo-1">Agrupación Musical</span>
-        <span class="banda-titulo-2">Stmo. Cristo de la Salud</span>
+        <span class="banda-bienvenida">Bienvenido al</span>
+        <span class="banda-titulo-app" id="inicio-nombre-app">Atril de San Juan</span>
         <div class="banda-linea-datos">
+          <span>A.M. Stmo. Cristo de la Salud</span>
+          <span class="icono-clave" aria-hidden="true">·</span>
           <span>Alcalá la Real</span>
-          <!-- Mini clave de fa SVG -->
-          <span class="icono-clave" aria-hidden="true">
-            <svg viewBox="0 0 10 18" width="10" height="18" fill="currentColor">
-              <text y="16" font-size="16" font-family="serif" opacity="0.8">𝄢</text>
-            </svg>
-          </span>
-          <span>1984</span>
         </div>
       </div>
 
-      <!-- Tarjeta de subida -->
+      <!-- Tarjetas de función -->
+      <div class="inicio-tarjetas">
+        <button class="tarjeta-funcion" id="btn-funcion-nombres" type="button">
+          <div class="tarjeta-funcion-icono" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="4" y="5" width="24" height="30" rx="2"/>
+              <line x1="9" y1="13" x2="23" y2="13"/>
+              <line x1="9" y1="18" x2="23" y2="18"/>
+              <line x1="9" y1="23" x2="17" y2="23"/>
+              <circle cx="30" cy="30" r="4" stroke-width="1.4"/>
+              <line x1="34" y1="27.5" x2="34" y2="22" stroke-width="1.6"/>
+              <text x="9" y="30" font-size="6.5" stroke="none" fill="currentColor" font-family="serif">Do Re Mi</text>
+            </svg>
+          </div>
+          <div class="tarjeta-funcion-titulo">Poner nombres a las notas</div>
+          <div class="tarjeta-funcion-desc">Superpone los nombres (Do, Re, Mi…) sobre el PDF original de la partitura</div>
+        </button>
+
+        <button class="tarjeta-funcion" id="btn-funcion-empalme" type="button">
+          <div class="tarjeta-funcion-icono" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="3" y="7" width="14" height="26" rx="2"/>
+              <rect x="23" y="7" width="14" height="26" rx="2"/>
+              <line x1="17" y1="20" x2="23" y2="20"/>
+              <polyline points="20,16 23,20 20,24" stroke-linejoin="round" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="tarjeta-funcion-titulo">Empalmar marchas</div>
+          <div class="tarjeta-funcion-desc">Une varios PDFs en uno solo, en el orden que elijas</div>
+        </button>
+      </div>
+    </div>
+    <!-- Pie con licencia -->
+    <footer class="inicio-pie" id="inicio-pie">
+      <span id="pie-version"></span>
+      <span class="pie-sep" aria-hidden="true">·</span>
+      <span>Fuente y posibles actualizaciones:</span>
+      <a id="pie-enlace-repo"
+         href="https://github.com/Chechiviiiriii/atril-de-san-juan"
+         target="_blank" rel="noopener"
+         class="pie-enlace">github.com/Chechiviiiriii/atril-de-san-juan</a>
+      <span class="pie-sep" aria-hidden="true">·</span>
+      <button class="enlace-neutro" id="btn-reiniciar-tutoriales"
+              type="button" style="font-size:0.75rem;opacity:0.6">
+        Volver a ver los tutoriales
+      </button>
+    </footer>
+  </section>
+
+  <!-- ====================================================
+       NOMBRES — PASO 1: SUBIR
+       ==================================================== -->
+  <section id="paso-subir" class="paso" aria-label="Subir partitura">
+    <div class="paso-subir-contenido">
       <div class="tarjeta tarjeta-subir" id="tarjeta-subir">
 
         <!-- Estado: zona de carga (inicial) -->
         <div id="estado-carga">
           <div id="zona-carga" class="zona-carga" role="button" tabindex="0"
                aria-label="Zona de arrastre de archivos PDF">
-            <!-- Icono de partitura -->
             <svg class="icono-partitura" viewBox="0 0 48 48" fill="none"
                  stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <rect x="8" y="4" width="32" height="40" rx="3"/>
@@ -113,8 +148,7 @@
         <!-- Estado: procesando -->
         <div id="estado-procesando" style="display:none">
           <div class="procesando-contenido">
-            <div class="spinner" role="status" aria-live="polite"
-                 aria-label="Procesando"></div>
+            <div class="spinner" role="status" aria-live="polite" aria-label="Procesando"></div>
             <p class="fase-texto" id="fase-texto">Iniciando…</p>
             <p class="procesando-nota">Puede tardar medio minuto la primera vez.</p>
           </div>
@@ -131,18 +165,18 @@
           </div>
         </div>
 
-      </div><!-- tarjeta-subir -->
-    </div><!-- paso-subir-contenido -->
+      </div>
+    </div>
   </section>
 
   <!-- ====================================================
-       PASO 2 — REVISAR
+       NOMBRES — PASO 2: REVISAR
        ==================================================== -->
   <section id="paso-revisar" class="paso" aria-label="Revisar notas">
 
     <!-- Área izquierda: páginas con overlay -->
     <div class="area-revision">
-      <div class="barra-herramientas">
+      <div class="barra-herramientas" id="barra-herramientas">
         <button class="btn-icono" id="zoom-menos" title="Reducir zoom" aria-label="Reducir zoom">−</button>
         <span class="zoom-texto" id="zoom-texto" aria-live="polite">100%</span>
         <button class="btn-icono" id="zoom-mas" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
@@ -150,6 +184,8 @@
         <button class="btn-secundario" id="zoom-ajustar" style="font-size:0.76rem;padding:0.35rem 0.75rem">
           Ajustar
         </button>
+        <div class="separador-v"></div>
+        <span class="barra-ayuda-teclado" title="N/P o Tab/Shift+Tab: siguiente/anterior · Flechas: mover nota · Ctrl+Z: deshacer">⌨ N/P · ↑↓←→</span>
       </div>
       <div class="scroll-paginas" id="scroll-paginas">
         <!-- Las páginas se insertan aquí por JS -->
@@ -160,39 +196,38 @@
     <aside class="barra-lateral" aria-label="Resumen y notas">
       <div class="barra-lateral-scroll" id="barra-lateral-scroll">
 
-        <!-- Resumen: clave y armadura -->
         <div class="tarjeta-resumen" id="tarjeta-resumen">
           <div class="resumen-titulo">Partitura</div>
           <ul class="resumen-cambios" id="lista-cambios"></ul>
           <div id="lista-avisos"></div>
         </div>
 
-        <!-- Contador de dudosas -->
         <div class="contador-dudosas" id="contador-dudosas">
           <div class="contador-num" id="contador-num">0</div>
           <div class="contador-etiqueta" id="contador-etiqueta">notas por revisar</div>
         </div>
 
-        <!-- Navegación entre dudosas -->
         <div class="nav-dudosas" id="nav-dudosas">
           <button class="btn-secundario" id="btn-anterior"
-                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota anterior">
+                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota anterior (P)">
             ← Anterior
           </button>
           <span class="nav-dudosas-pos" id="nav-pos"></span>
           <button class="btn-secundario" id="btn-siguiente"
-                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota siguiente">
+                  style="font-size:0.78rem;padding:0.4rem 0.8rem" aria-label="Nota siguiente (N)">
             Siguiente →
           </button>
         </div>
 
-        <!-- Lista de notas dudosas -->
         <ul class="lista-dudosas" id="lista-dudosas" aria-label="Notas por revisar"></ul>
 
       </div>
 
-      <!-- Pie de la barra lateral -->
       <div class="barra-lateral-pie">
+        <button class="btn-secundario" id="btn-deshacer" type="button" disabled
+                style="font-size:0.78rem;padding:0.45rem 0.75rem">
+          ↩ Deshacer
+        </button>
         <button class="btn-primario" id="btn-confirmar" type="button">
           Confirmar y descargar PDF
         </button>
@@ -202,7 +237,86 @@
   </section>
 
   <!-- ====================================================
-       PASO 3 — DESCARGAR
+       EMPALME — PASO 1: SUBIR Y ORDENAR
+       ==================================================== -->
+  <section id="paso-empalme" class="paso" aria-label="Subir y ordenar marchas">
+
+    <div class="empalme-contenido">
+      <!-- Zona de carga de múltiples PDFs -->
+      <div id="zona-carga-empalme" class="zona-carga zona-carga-empalme" role="button" tabindex="0"
+           aria-label="Zona de arrastre de archivos PDF">
+        <svg class="icono-partitura" viewBox="0 0 48 48" fill="none"
+             stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="4" y="6" width="18" height="24" rx="2"/>
+          <rect x="14" y="12" width="18" height="24" rx="2"/>
+          <rect x="26" y="6" width="18" height="24" rx="2"/>
+          <line x1="19" y1="26" x2="25" y2="26" stroke-width="1.4"/>
+          <polyline points="22,23 25,26 22,29" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <p class="zona-carga-titulo">Arrastra los PDFs aquí</p>
+        <p class="zona-carga-o">o</p>
+        <button class="btn-primario" id="btn-elegir-empalme" type="button">Elegir archivos</button>
+        <input type="file" id="input-empalme" accept=".pdf" multiple aria-hidden="true"
+               style="position:absolute;opacity:0;pointer-events:none">
+      </div>
+
+      <!-- Lista de marchas subidas -->
+      <div class="empalme-lista-wrap" id="empalme-lista-wrap" style="display:none">
+        <div class="empalme-lista-header">
+          <span class="empalme-lista-titulo">Orden de las marchas</span>
+          <button class="btn-secundario" id="btn-anyadir-mas"
+                  style="font-size:0.76rem;padding:0.35rem 0.8rem">+ Añadir más</button>
+          <input type="file" id="input-empalme-mas" accept=".pdf" multiple aria-hidden="true"
+                 style="position:absolute;opacity:0;pointer-events:none">
+        </div>
+
+        <!-- Lista ordenable -->
+        <ul class="empalme-lista" id="empalme-lista" aria-label="Lista de marchas"></ul>
+
+        <!-- Advertencia de duplicado -->
+        <div class="empalme-aviso" id="empalme-aviso" style="display:none">
+          <span aria-hidden="true">⚠</span>
+          <span id="empalme-aviso-texto"></span>
+        </div>
+
+        <!-- Nombre del archivo resultante + botón -->
+        <div class="empalme-pie">
+          <label class="empalme-nombre-label">
+            <span>Nombre del archivo</span>
+            <input type="text" id="empalme-nombre-archivo" class="empalme-nombre-input"
+                   value="Marchas empalmadas" maxlength="120">
+          </label>
+          <button class="btn-primario" id="btn-unir" type="button" disabled>
+            Unir y descargar PDF
+          </button>
+          <p class="texto-pie" id="empalme-hint" style="display:none">
+            Añade al menos 2 marchas para poder unirlas.
+          </p>
+        </div>
+      </div>
+
+      <!-- Estado: procesando unión -->
+      <div id="empalme-procesando" style="display:none">
+        <div class="procesando-contenido">
+          <div class="spinner" role="status" aria-live="polite" aria-label="Procesando"></div>
+          <p class="fase-texto">Uniendo PDFs…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para ver miniatura grande -->
+    <div id="modal-miniatura" class="modal-fondo" role="dialog" aria-label="Miniatura" aria-modal="true">
+      <div class="modal-miniatura-contenido" id="modal-miniatura-contenido">
+        <img id="modal-miniatura-img" src="" alt="Primera página">
+        <button class="btn-icono modal-miniatura-cerrar" id="modal-miniatura-cerrar"
+                type="button" aria-label="Cerrar">✕</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ====================================================
+       PASO LISTO (compartido por nombres y empalme)
        ==================================================== -->
   <section id="paso-listo" class="paso" aria-label="Descargar PDF">
     <div class="tarjeta-listo">
@@ -217,7 +331,7 @@
       <h2 class="listo-titulo">¡Listo!</h2>
       <p class="listo-nombre" id="listo-nombre"></p>
 
-      <div class="listo-btns">
+      <div class="listo-btns" id="listo-btns">
         <button class="btn-primario" id="btn-guardar-pdf" type="button">
           Guardar PDF
         </button>
@@ -228,19 +342,19 @@
           Abrir PDF
         </button>
         <button class="enlace-neutro" id="btn-nueva-partitura" type="button">
-          Poner nombres a otra partitura
+          Volver al inicio
         </button>
       </div>
     </div>
   </section>
 
-</main><!-- app-main -->
+</main>
 
 <!-- ============================================================
      SELECTOR DE NOTA (popover flotante)
      ============================================================ -->
 <div id="selector-nota" class="selector-nota" role="dialog"
-     aria-label="Seleccionar nota" aria-modal="true">
+     aria-label="Ajustar nota" aria-modal="true">
   <div class="selector-titulo">¿Qué nota es?</div>
   <div class="selector-propuesta">
     Propuesta: <strong id="prop-texto">—</strong>
@@ -259,10 +373,45 @@
     <button class="btn-alt activo" data-alt="" aria-label="Natural">♮</button>
     <button class="btn-alt" data-alt="#" aria-label="Sostenido">♯</button>
   </div>
+  <!-- Fila de tamaño -->
+  <div class="selector-tam-fila">
+    <span class="selector-tam-label">Tamaño</span>
+    <button class="btn-tam" id="btn-tam-menos" type="button" title="Reducir (mín. 5 pt)">A−</button>
+    <span class="selector-tam-val" id="selector-tam-val">9,5 pt</span>
+    <button class="btn-tam" id="btn-tam-mas" type="button" title="Ampliar (máx. 14 pt)">A+</button>
+  </div>
   <div class="selector-acciones">
     <button class="btn-secundario" id="btn-ligada">· (ligada)</button>
     <button class="btn-primario" id="btn-aceptar-prop">Aceptar propuesta</button>
+    <button class="btn-primario" id="btn-cambiar-nota" disabled>Cambiar nota</button>
   </div>
+  <button class="enlace-neutro selector-restablecer" id="btn-restablecer-pos" type="button">
+    Restablecer posición y tamaño
+  </button>
+</div>
+
+<!-- ============================================================
+     SELECTOR DE ACORDE (popover flotante para notas en acorde)
+     ============================================================ -->
+<div id="selector-acorde" class="selector-nota selector-acorde" role="dialog"
+     aria-label="Ajustar acorde" aria-modal="true">
+  <div class="selector-titulo">Acorde <span id="acorde-titulo-n"></span></div>
+  <!-- Filas de notas: generadas dinámicamente por JS -->
+  <div id="acorde-filas"></div>
+  <!-- Fila de tamaño (comparte tam con todas las notas del acorde) -->
+  <div class="selector-tam-fila">
+    <span class="selector-tam-label">Tamaño</span>
+    <button class="btn-tam" id="acorde-tam-menos" type="button" title="Reducir">A−</button>
+    <span class="selector-tam-val" id="acorde-tam-val">9,5 pt</span>
+    <button class="btn-tam" id="acorde-tam-mas" type="button" title="Ampliar">A+</button>
+  </div>
+  <div class="selector-acciones">
+    <button class="btn-primario" id="acorde-btn-aplicar">Aplicar</button>
+    <button class="btn-secundario" id="acorde-btn-aceptar">Aceptar propuesta</button>
+  </div>
+  <button class="enlace-neutro selector-restablecer" id="acorde-btn-restablecer" type="button">
+    Restablecer posición y tamaño
+  </button>
 </div>
 
 <!-- ============================================================
@@ -281,5 +430,6 @@
 </div>
 
 <script src="app.js"></script>
+<script src="guia.js"></script>
 </body>
 </html>

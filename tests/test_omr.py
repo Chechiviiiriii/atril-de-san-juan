@@ -22,6 +22,68 @@ from omr import (
 # buscar_audiveris
 # ---------------------------------------------------------------------------
 
+def test_buscar_audiveris_frozen_usa_audiveris_empaquetado(tmp_path, monkeypatch):
+    """Cuando está frozen y existe <exe_dir>/audiveris/Audiveris.exe, lo devuelve primero."""
+    import sys
+    exe_dir = tmp_path / "app"
+    exe_dir.mkdir()
+    exe_simulado = exe_dir / "AtrilDeSanJuan.exe"
+    exe_simulado.write_text("")
+    bundled = exe_dir / "audiveris" / "Audiveris.exe"
+    bundled.parent.mkdir()
+    bundled.write_text("")
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe_simulado))
+
+    config = {"rutas": {"audiveris": ""}}
+    resultado = buscar_audiveris(config)
+    assert resultado == bundled
+
+
+def test_buscar_audiveris_frozen_sin_bundled_cae_a_busqueda_normal(tmp_path, monkeypatch):
+    """Cuando está frozen pero no hay audiveris empaquetado, usa la búsqueda normal."""
+    import sys
+    import omr
+
+    exe_dir = tmp_path / "app"
+    exe_dir.mkdir()
+    exe_simulado = exe_dir / "AtrilDeSanJuan.exe"
+    exe_simulado.write_text("")
+    # NO creamos exe_dir/audiveris/Audiveris.exe
+
+    # Creamos un Audiveris.exe en una ruta típica para que la búsqueda normal lo encuentre
+    ruta_tipica = tmp_path / "Audiveris.exe"
+    ruta_tipica.write_text("")
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe_simulado))
+    monkeypatch.setattr(omr, "_RUTAS_AUDIVERIS", [ruta_tipica])
+
+    config = {"rutas": {"audiveris": ""}}
+    with patch("shutil.which", return_value=None):
+        resultado = buscar_audiveris(config)
+    assert resultado == ruta_tipica
+
+
+def test_buscar_audiveris_no_frozen_ignora_bundled(tmp_path, monkeypatch):
+    """Cuando NO está frozen, no busca el Audiveris empaquetado aunque existiera."""
+    import sys
+    import omr
+
+    # sys.frozen no definido → getattr(sys, "frozen", False) == False
+    monkeypatch.delattr(sys, "frozen", raising=False)
+
+    ruta_tipica = tmp_path / "Audiveris.exe"
+    ruta_tipica.write_text("")
+    monkeypatch.setattr(omr, "_RUTAS_AUDIVERIS", [ruta_tipica])
+
+    config = {"rutas": {"audiveris": ""}}
+    with patch("shutil.which", return_value=None):
+        resultado = buscar_audiveris(config)
+    assert resultado == ruta_tipica
+
+
 def test_buscar_audiveris_usa_ruta_config(tmp_path):
     """Usa la ruta configurada si existe."""
     exe = tmp_path / "Audiveris.exe"

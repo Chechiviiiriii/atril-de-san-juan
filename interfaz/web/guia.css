@@ -1,0 +1,208 @@
+/* ============================================================
+   guia.css — Personaje guía y sistema de tutorial
+   Atril de San Juan — A.M. Stmo. Cristo de la Salud
+   ============================================================ */
+
+/* ---- Variables propias ---- */
+:root {
+    --guia-alto: 155px;
+    --guia-margen: 16px;
+    --burbuja-ancho: 320px;
+    --guia-z:         200;
+    --overlay-z:     9000;
+    --foco-z:        9002;
+    --burbuja-z:     9003;
+    --guia-z-tour:   9004;
+}
+
+/* ============================================================
+   PERSONAJE GUÍA
+   ============================================================ */
+.guia-personaje {
+    position: fixed;
+    bottom: 0;
+    left: var(--guia-margen);
+    z-index: var(--guia-z);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+    line-height: 0;
+    /* Subida ligera en tour para quedar sobre el overlay */
+    transition: z-index 0s;
+}
+
+.guia-personaje.tour-activo {
+    z-index: var(--guia-z-tour);
+}
+
+.guia-personaje:focus-visible {
+    outline: 2px solid var(--azul);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.guia-personaje img {
+    display: block;
+    height: var(--guia-alto);
+    width: auto;
+    /* Suavizado normal (no pixel-art crisp) */
+    image-rendering: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Respiración sutil (bobbing) */
+@keyframes guia-respirar {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-3px); }
+}
+
+.guia-personaje img.animando {
+    animation: guia-respirar 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guia-personaje img.animando {
+        animation: none;
+    }
+}
+
+/* ============================================================
+   OVERLAY DEL TOUR (bloquea clics en el fondo)
+   ============================================================ */
+.guia-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--overlay-z);
+    background: transparent;   /* el efecto oscuro lo hace .guia-foco con box-shadow */
+    cursor: default;
+    display: none;
+}
+
+/* ============================================================
+   FOCO (spotlight) — posicionado por JS sobre el elemento activo
+   ============================================================ */
+.guia-foco {
+    position: fixed;
+    z-index: var(--foco-z);
+    pointer-events: none;
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.70);
+    display: none;
+}
+
+/* Animación suave solo al pasar de un paso a otro (el seguimiento continuo va sin transición) */
+.guia-foco.con-transicion {
+    transition: top    300ms ease,
+                left   300ms ease,
+                width  300ms ease,
+                height 300ms ease,
+                border-radius 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guia-foco.con-transicion { transition: none; }
+}
+
+/* ============================================================
+   BURBUJA DEL TUTORIAL
+   ============================================================ */
+.guia-burbuja {
+    position: fixed;
+    bottom: calc(var(--guia-alto) + var(--guia-margen) + 8px);
+    left: var(--guia-margen);
+    width: var(--burbuja-ancho);
+    z-index: var(--burbuja-z);
+    background: var(--fondo-card);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    padding: 1rem 1.1rem 0.85rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+    display: none;
+    /* Aparición suave */
+    animation: burbuja-entrar 180ms ease-out;
+}
+
+@keyframes burbuja-entrar {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guia-burbuja { animation: none; }
+}
+
+/* Cola de la burbuja apuntando hacia abajo (hacia el personaje) */
+.guia-burbuja::before {
+    content: '';
+    position: absolute;
+    bottom: -14px;
+    left: 21px;
+    border-width: 14px 12px 0;
+    border-style: solid;
+    border-color: var(--borde-fuerte) transparent transparent transparent;
+    pointer-events: none;
+}
+
+.guia-burbuja::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 23px;
+    border-width: 12px 10px 0;
+    border-style: solid;
+    border-color: var(--fondo-card) transparent transparent transparent;
+    pointer-events: none;
+}
+
+/* Contenido de la burbuja */
+.guia-burbuja-titulo {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--texto);
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.01em;
+}
+
+.guia-burbuja-texto {
+    font-size: 0.82rem;
+    color: var(--texto-2);
+    line-height: 1.5;
+    margin-bottom: 0.6rem;
+}
+
+.guia-burbuja-meta {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    text-align: right;
+    margin-bottom: 0.55rem;
+    letter-spacing: 0.03em;
+}
+
+.guia-burbuja-btns {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.guia-reset-link {
+    margin-bottom: 0.4rem;
+}
+
+/* ============================================================
+   AJUSTES RESPONSIVE — ventanas pequeñas (1000×700)
+   ============================================================ */
+@media (max-height: 750px) {
+    :root {
+        --guia-alto: 120px;
+    }
+    .guia-burbuja {
+        width: 290px;
+        padding: 0.75rem 0.9rem 0.7rem;
+    }
+    .guia-burbuja-texto {
+        font-size: 0.78rem;
+    }
+}

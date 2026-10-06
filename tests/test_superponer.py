@@ -342,3 +342,277 @@ def test_silencio_entre_cabezas():
     assert not _hay_silencio_entre(corchea, pent, 145.7, 160.0)
     # Una "‰" en una fuente de texto no es un silencio
     assert not _hay_silencio_entre([(ord("‰"), "PalatinoLinotype-Roman", 136.4, 147.1)], pent, 126.9, 145.7)
+
+
+# ---------------------------------------------------------------------------
+# 8. Notas fijas (fija=True)
+# ---------------------------------------------------------------------------
+
+def test_nota_fija_conserva_posicion():
+    """Una nota marcada fija no se mueve al recolocar."""
+    if not _VICTORIA_PDF.exists() or not _VICTORIA_MXL.exists():
+        pytest.skip("Datos de victoria no disponibles")
+
+    from music21 import converter
+    from superponer import analizar, colocar_nombres, NotaColocada
+
+    partitura = converter.parse(str(_VICTORIA_MXL))
+    analisis = analizar(_VICTORIA_PDF, partitura)
+    colocar_nombres(analisis)
+
+    # Tomar la primera nota que tenga posición asignada
+    nota = next((n for n in analisis.notas if n.x is not None), None)
+    if nota is None:
+        pytest.skip("No se encontraron notas con posición")
+
+    x_antes    = nota.x
+    base_antes = nota.base
+    tam_antes  = nota.tam
+
+    # Fijarla en una posición arbitraria diferente
+    nota.fija = True
+    nota.x    = x_antes + 20.0
+    nota.base = base_antes + 10.0
+    nota.tam  = tam_antes  + 1.0
+
+    x_fija    = nota.x
+    base_fija = nota.base
+    tam_fija  = nota.tam
+
+    # Recolocar: la nota fija no debe moverse
+    colocar_nombres(analisis)
+
+    assert nota.x    == x_fija,    f"x cambió: {nota.x} ≠ {x_fija}"
+    assert nota.base == base_fija, f"base cambió: {nota.base} ≠ {base_fija}"
+    assert nota.tam  == tam_fija,  f"tam cambió: {nota.tam} ≠ {tam_fija}"
+
+
+def test_vecina_evita_nota_fija():
+    """Las notas no fijas evitan la zona ocupada por una nota fija."""
+    if not _VICTORIA_PDF.exists() or not _VICTORIA_MXL.exists():
+        pytest.skip("Datos de victoria no disponibles")
+
+    from music21 import converter
+    from superponer import analizar, colocar_nombres
+    import pymupdf
+
+    partitura = converter.parse(str(_VICTORIA_MXL))
+    analisis = analizar(_VICTORIA_PDF, partitura)
+    colocar_nombres(analisis)
+
+    # Buscar dos notas en la misma página con x cercanas
+    notas_p0 = [n for n in analisis.notas if n.pagina == 0 and n.x is not None]
+    if len(notas_p0) < 2:
+        pytest.skip("No hay suficientes notas en página 0")
+
+    # Fijar la primera nota en la posición de la segunda (forzar colisión potencial)
+    nota_fija   = notas_p0[0]
+    nota_vecina = notas_p0[1]
+
+    nota_fija.fija = True
+    nota_fija.x    = nota_vecina.x
+    nota_fija.base = nota_vecina.base
+
+    colocar_nombres(analisis)
+
+    # La vecina debe haberse movido o no tener posición (sin hueco)
+    if nota_vecina.x is not None and not nota_vecina.sin_hueco:
+        # No deben solaparse exactamente
+        assert (abs(nota_vecina.x - nota_fija.x) > 0.5
+                or abs(nota_vecina.base - nota_fija.base) > 0.5), (
+            "La nota vecina coincide exactamente con la nota fija"
+        )
+
+
+def test_pitch_por_paso_en_acorde():
+    # Las comprobaciones sobre una cabeza de nota deben funcionar también dentro de un acorde
+    from music21 import chord, clef, stream
+    from superponer import _nombre_por_paso, _pitch_por_paso
+    compas = stream.Measure()
+    compas.append(clef.BassClef())
+    acorde = chord.Chord(["C3", "E-3", "G3"])
+    compas.append(acorde)
+    # En clave de fa la línea inferior es Sol2: Do3 está 3 pasos por encima, Mib3 5 y Sol3 7
+    assert _pitch_por_paso(acorde, 3).nameWithOctave == "C3"
+    assert _nombre_por_paso(acorde, 5) == "Mib"
+    assert _nombre_por_paso(acorde, 7) == "Sol"
+    assert _pitch_por_paso(acorde, 4) is None
+
+
+# ---------------------------------------------------------------------------
+# 9. Detección de acordes por geometría
+# ---------------------------------------------------------------------------
+
+def _par_sintetico(id_, linea, xc, y, paso=0, texto="Do", estado="ok", motivo=""):
+    """Crea un par (NotaColocada, Cabeza) sintético para tests de acordes."""
+    from superponer import NotaColocada, Cabeza
+    ancho = 6.0
+    x0 = xc - ancho / 2
+    x1 = xc + ancho / 2
+    nota = NotaColocada(
+        id=id_, pagina=0, linea=linea, compas=1,
+        cabeza=(x0, y, x1, y + 4.0),
+        texto=texto, estado=estado, motivo=motivo,
+    )
+    cabeza = Cabeza(pent=linea - 1, x=x0, xc=xc, y=y, paso=paso, tam=9.5,
+                    bbox=(x0, y, x1, y + 4.0))
+    return nota, cabeza
+
+
+def test_detectar_acordes_dos_cabezas_mismo_tallo():
+    """Dos cabezas muy próximas en x (mismo tallo) → acorde."""
+    from superponer import _detectar_acordes
+    # Δxc = 1.5 pt ≤ 0.35 × 6 = 2.1 pt → criterio (a), forman acorde
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4, texto="Sol")
+    n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, texto="Mi")
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde is not None
+    assert n2.acorde is not None
+    assert n1.acorde == n2.acorde
+
+
+def test_detectar_acordes_segunda_cabeza_desplazada():
+    """Acorde de segunda: cabeza desplazada ~0.9 ancho + Δpaso==1 → acorde."""
+    from superponer import _detectar_acordes
+    # Δxc = 5.5 pt ∈ [0.75×6=4.5, 1.05×6=6.3] y Δpaso=1 → criterio (b)
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
+    n2, h2 = _par_sintetico(1, 1, xc=105.5, y=54.0, paso=3, texto="Re")
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde is not None
+    assert n1.acorde == n2.acorde
+
+
+def test_detectar_acordes_notas_consecutivas_no_acorde():
+    """Dos notas con mucha separación x en el mismo pentagrama NO forman acorde."""
+    from superponer import _detectar_acordes
+    # Δxc = 50 pt >> 1.15 × 6 = 6.9 pt
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
+    n2, h2 = _par_sintetico(1, 1, xc=150.0, y=54.0, paso=3, texto="Re")
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde is None
+    assert n2.acorde is None
+
+
+def test_detectar_acordes_distinto_pentagrama_no_acorde():
+    """Cabezas en líneas distintas con x similar NO forman acorde."""
+    from superponer import _detectar_acordes
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0,  paso=2, texto="Do")
+    n2, h2 = _par_sintetico(1, 2, xc=100.5, y=200.0, paso=3, texto="Re")
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde is None
+    assert n2.acorde is None
+
+
+def test_detectar_acordes_campo_en_a_dict():
+    """a_dict() incluye el campo 'acorde'."""
+    from superponer import _detectar_acordes
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4)
+    n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2)
+    _detectar_acordes([n1, n2], [h1, h2])
+    d1 = n1.a_dict()
+    d2 = n2.a_dict()
+    assert "acorde" in d1
+    assert "acorde" in d2
+    assert d1["acorde"] == d2["acorde"]
+    assert d1["acorde"] is not None
+
+
+def test_detectar_acordes_motivo_acorde():
+    """Una nota ok en un acorde pasa a dudosa con motivo 'Acorde:…'."""
+    from superponer import _detectar_acordes
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4, estado="ok")
+    n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, estado="ok")
+    _detectar_acordes([n1, n2], [h1, h2])
+    assert n1.estado == "dudosa"
+    assert n1.motivo.startswith("Acorde:")
+    assert n2.estado == "dudosa"
+
+
+def test_detectar_acordes_deducida_conserva_motivo():
+    """Una nota 'deducida' en un acorde conserva su estado y motivo originales."""
+    from superponer import _detectar_acordes
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=4,
+                             estado="deducida", motivo="Audiveris no la leyó")
+    n2, h2 = _par_sintetico(1, 1, xc=101.5, y=60.0, paso=2, estado="ok")
+    _detectar_acordes([n1, n2], [h1, h2])
+    assert n1.acorde == n2.acorde
+    assert n1.estado == "deducida"
+    assert n1.motivo == "Audiveris no la leyó"
+
+
+def test_detectar_acordes_orden_agudo_grave():
+    """Las notas del acorde quedan con el mismo acorde; la de y menor es la más aguda."""
+    from superponer import _detectar_acordes
+    # n1 es más grave (y mayor), n2 es más aguda (y menor)
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=70.0, paso=2, texto="Do")   # grave
+    n2, h2 = _par_sintetico(1, 1, xc=101.5, y=50.0, paso=4, texto="Sol")  # agudo
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde == n2.acorde
+    assert n2.cabeza[1] < n1.cabeza[1]  # Sol (agudo) tiene y menor
+
+
+def test_detectar_acordes_segunda_sin_paso_adyacente_no_acorde():
+    """Segunda desplazada pero Δpaso > 1 no forma acorde."""
+    from superponer import _detectar_acordes
+    # Δxc = 5.5 ∈ [4.5, 6.9] pero Δpaso=3 → criterio (b) no se cumple
+    n1, h1 = _par_sintetico(0, 1, xc=100.0, y=50.0, paso=2, texto="Do")
+    n2, h2 = _par_sintetico(1, 1, xc=105.5, y=54.0, paso=5, texto="Sol")
+    notas = [n1, n2]
+    _detectar_acordes(notas, [h1, h2])
+    assert n1.acorde is None
+    assert n2.acorde is None
+
+
+def test_detectar_acordes_semicorcheas_consecutivas_no_acorde():
+    """Cinco semicorcheas en sucesión (Δxc ≈ 9 pt, ancho=6 pt) no forman acorde.
+
+    9 pt > 1.15 × 6 = 6.9 pt → no cumplen ninguno de los dos criterios.
+    """
+    from superponer import _detectar_acordes
+    pasos  = [6, 7, 6, 5, 4]   # La Si La Sol Fa (aproximado)
+    notas  = []
+    cabezas = []
+    for i, (p, xc) in enumerate(zip(pasos, [100.0, 109.0, 118.0, 127.0, 136.0])):
+        n, h = _par_sintetico(i, 1, xc=xc, y=50.0 + i, paso=p)
+        notas.append(n)
+        cabezas.append(h)
+    _detectar_acordes(notas, cabezas)
+    for nota in notas:
+        assert nota.acorde is None, (
+            f"Nota {nota.id} marcada como acorde incorrectamente"
+        )
+
+
+@requiere_datos("victoria.pdf", "victoria_omr.mxl")
+def test_victoria_sin_acordes(victoria_partitura):
+    """victoria.pdf no contiene acordes: ninguna nota debe tener acorde asignado."""
+    from superponer import analizar
+    analisis = analizar(_VICTORIA_PDF, victoria_partitura)
+    notas_con_acorde = [n for n in analisis.notas if n.acorde is not None]
+    assert notas_con_acorde == [], (
+        f"{len(notas_con_acorde)} notas con acorde en victoria.pdf: "
+        + ", ".join(f"id={n.id} motivo={n.motivo!r}" for n in notas_con_acorde[:5])
+    )
+    notas_motivo_acorde = [
+        n for n in analisis.notas if "Acorde" in (n.motivo or "")
+    ]
+    assert notas_motivo_acorde == [], (
+        f"{len(notas_motivo_acorde)} notas con motivo 'Acorde…' en victoria.pdf"
+    )
+
+
+@requiere_datos("dulce.pdf", "dulce_omr.mxl")
+def test_dulce_sin_acordes(dulce_partitura):
+    """dulce.pdf no contiene acordes: ninguna nota debe tener acorde asignado."""
+    from superponer import analizar
+    analisis = analizar(_DULCE_PDF, dulce_partitura)
+    notas_con_acorde = [n for n in analisis.notas if n.acorde is not None]
+    assert notas_con_acorde == [], (
+        f"{len(notas_con_acorde)} notas con acorde en dulce.pdf: "
+        + ", ".join(f"id={n.id} motivo={n.motivo!r}" for n in notas_con_acorde[:5])
+    )

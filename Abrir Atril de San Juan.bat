@@ -1,5 +1,5 @@
 @echo off
-:: Lanzador de pdf2notas
+:: Lanzador de Atril de San Juan
 :: Para usar un Python portátil, cambia la variable PYTHON a su ruta, p. ej.:
 ::   set PYTHON=python\python.exe
 set PYTHON=pythonw

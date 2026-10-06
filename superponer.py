@@ -154,6 +154,8 @@ class NotaColocada:
     base: Optional[float] = None                 # línea base del texto
     tam: Optional[float] = None                  # tamaño de fuente usado
     sin_hueco: bool = False
+    fija: bool = False                           # True si el usuario fijó la posición manualmente
+    acorde: Optional[int] = None                 # id común para todas las cabezas del mismo acorde (None si es nota suelta)
 
     def a_dict(self) -> dict:
         """Serializa a diccionario JSON-compatible."""
@@ -170,6 +172,8 @@ class NotaColocada:
             "base": self.base,
             "tam": self.tam,
             "sin_hueco": self.sin_hueco,
+            "fija": self.fija,
+            "acorde": self.acorde,
         }
 
 
@@ -247,6 +251,7 @@ def _es_alt_smufl(codepoint: int) -> Optional[int]:
 # Detección de pentagramas
 # ---------------------------------------------------------------------------
 
+TRAMO_MINIMO_LINEA_PENTAGRAMA = 0.05   # fracción del ancho de página (una línea adicional es mucho más corta)
 ESPACIO_MIN_PENTAGRAMA = 2.0    # pt entre líneas consecutivas
 ESPACIO_MAX_PENTAGRAMA = 12.0
 TOLERANCIA_LINEA = 0.35         # pt de desviación admitida respecto al espaciado regular
@@ -289,6 +294,10 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
 
     Devuelve lista de :class:`Pentagrama` para esta página, en orden de arriba a abajo.
     """
+    # Solo cuentan los trazos largos (la línea entera o, como mucho, un compás):
+    # muchas líneas adicionales cortas a la misma altura (notas agudas seguidas)
+    # sumarían tanta longitud como una línea del pentagrama y lo desplazarían.
+    tramo_minimo = page.rect.width * TRAMO_MINIMO_LINEA_PENTAGRAMA
     segs: dict[float, list[float]] = {}
     for d in page.get_drawings():
         for it in d["items"]:
@@ -299,6 +308,8 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
                 y = round((it[1].y0 + it[1].y1) / 2, 1)
                 x0, x1 = it[1].x0, it[1].x1
             else:
+                continue
+            if x1 - x0 < tramo_minimo:
                 continue
             entrada = segs.setdefault(y, [0.0, x0, x1])
             entrada[0] += x1 - x0
@@ -330,6 +341,83 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
 # Detección de cabezas de nota
 # ---------------------------------------------------------------------------
 
+def _lineas_adicionales(
+    page: pymupdf.Page, pents: list[Pentagrama]
+) -> list[tuple[float, float, float]]:
+    """Líneas adicionales (las cortas por encima o debajo del pentagrama): ``(y, x0, x1)``."""
+    espacio = sum(p.espacio for p in pents) / len(pents)
+    lineas_pentagrama = [
+        p.arriba + k * p.espacio for p in pents for k in range(5)
+    ]
+    resultado = []
+    for d in page.get_drawings():
+        for it in d["items"]:
+            if it[0] == "l" and abs(it[1].y - it[2].y) < 0.3:
+                y = (it[1].y + it[2].y) / 2
+                x0, x1 = sorted((it[1].x, it[2].x))
+            elif it[0] == "re" and it[1].height < 1.2:
+                y = (it[1].y0 + it[1].y1) / 2
+                x0, x1 = it[1].x0, it[1].x1
+            else:
+                continue
+            if not (0.8 * espacio <= x1 - x0 <= 4.0 * espacio):
+                continue          # ni líneas del pentagrama ni trocitos sueltos
+            if any(abs(y - yl) < 0.3 for yl in lineas_pentagrama):
+                continue
+            resultado.append((y, x0, x1))
+    return resultado
+
+
+def _adicionales_presentes(
+    adicionales: list[tuple[float, float, float]], xc: float, ys: list[float], tol: float
+) -> bool:
+    """True si hay una línea adicional en cada altura de ``ys`` que pase por x = xc."""
+    return all(
+        any(abs(y - ya) <= tol and x0 - 1 <= xc <= x1 + 1 for ya, x0, x1 in adicionales)
+        for y in ys
+    )
+
+
+def _pentagrama_de_cabeza(
+    pents: list[Pentagrama],
+    adicionales: list[tuple[float, float, float]],
+    xc: float,
+    y: float,
+) -> int:
+    """Índice del pentagrama al que pertenece una cabeza de nota.
+
+    Una nota fuera del pentagrama necesita líneas adicionales entre ella y SU
+    pentagrama. Cuando los sistemas están juntos, una nota muy aguda puede quedar
+    más cerca del pentagrama de arriba; por eso, entre los pentagramas vecinos se
+    elige aquel cuyas líneas adicionales están dibujadas, y solo si ninguno
+    encaja se usa el más cercano.
+    """
+    def distancia(p: Pentagrama) -> float:
+        return abs((p.arriba + p.abajo) / 2 - y)
+
+    candidatos = sorted(range(len(pents)), key=lambda k: distancia(pents[k]))[:2]
+    encajan: list[tuple[int, int]] = []               # (líneas adicionales confirmadas, índice)
+    for k in candidatos:
+        p = pents[k]
+        e = p.espacio
+        if p.arriba - 0.75 * e <= y <= p.abajo + 0.75 * e:
+            return k                                   # dentro o pegada: sin líneas adicionales
+        if y < p.arriba:
+            n = int((p.arriba - y) / e + 0.25)        # líneas adicionales necesarias por encima
+            alturas = [p.arriba - i * e for i in range(1, n + 1)]
+        else:
+            n = int((y - p.abajo) / e + 0.25)
+            alturas = [p.abajo + i * e for i in range(1, n + 1)]
+        if _adicionales_presentes(adicionales, xc, alturas, 0.3 * e):
+            encajan.append((n, k))
+    if encajan:
+        # Si encajan los dos (la nota está sobre su propia línea adicional, que también
+        # podría ser «la primera» del otro pentagrama), gana el que tiene toda la
+        # escalera de líneas adicionales hasta él: más pruebas.
+        return max(encajan)[1]
+    return candidatos[0]
+
+
 def detectar_cabezas(page: pymupdf.Page, pents_locales: list[Pentagrama]) -> list[Cabeza]:
     """Detecta cabezas de nota en la página y las asigna al pentagrama más cercano.
 
@@ -339,7 +427,7 @@ def detectar_cabezas(page: pymupdf.Page, pents_locales: list[Pentagrama]) -> lis
     if not pents_locales:
         return []
 
-    mids = [(p.arriba + p.abajo) / 2.0 for p in pents_locales]
+    adicionales = _lineas_adicionales(page, pents_locales)
     resultado: list[Cabeza] = []
 
     for sp in page.get_texttrace():
@@ -350,7 +438,7 @@ def detectar_cabezas(page: pymupdf.Page, pents_locales: list[Pentagrama]) -> lis
                 continue
             ox, oy = ch[2]
             bx0, by0, bx1, by1 = ch[3]
-            idx = min(range(len(mids)), key=lambda k: abs(mids[k] - oy))
+            idx = _pentagrama_de_cabeza(pents_locales, adicionales, (bx0 + bx1) / 2.0, oy)
             p = pents_locales[idx]
             paso = round((p.abajo - oy) / (p.espacio / 2))
             resultado.append(Cabeza(
@@ -413,23 +501,31 @@ def _armadura_inicio_sistema(
     else:
         primer_x = pent.x1
 
-    flats = 0
-    sharps = 0
-    for (c, fn, ox, oy) in chars:
-        if ox >= primer_x - 5:
-            continue
-        if ox < pent.x0 - 5:
-            continue
-        # Verificar que está en el rango vertical del pentagrama (con margen)
-        if oy < pent.arriba - pent.espacio * 3 or oy > pent.abajo + pent.espacio * 3:
-            continue
-        alt = _es_alt(c, fn)
-        if alt is None:
-            continue
-        if alt == -1:
-            flats += 1
-        elif alt == 1:
-            sharps += 1
+    e = pent.espacio
+    en_pentagrama = [
+        (c, fn, ox, oy) for (c, fn, ox, oy) in chars
+        if pent.x0 - 5 <= ox < primer_x - 5
+        and pent.arriba - e * 3 <= oy <= pent.abajo + e * 3
+    ]
+    # La armadura termina en el primer silencio (p. ej. «𝄾 Solb»: ese bemol es de la nota)
+    silencios = [ox for (c, fn, ox, oy) in en_pentagrama
+                 if c in SILENCIOS_SMUFL or (_es_fuente_musica_clasica(fn) and chr(c) in SILENCIOS_CLASICOS)]
+    limite = min(silencios) if silencios else primer_x
+
+    alteraciones = sorted(
+        (ox, alt) for (c, fn, ox, oy) in en_pentagrama
+        if ox < limite and (alt := _es_alt(c, fn)) is not None
+    )
+    # Solo el primer grupo seguido: las alteraciones de la armadura van pegadas entre sí
+    grupo: list[int] = []
+    x_anterior = None
+    for ox, alt in alteraciones:
+        if x_anterior is not None and ox - x_anterior > 2.5 * e:
+            break
+        grupo.append(alt)
+        x_anterior = ox
+    flats = sum(1 for alt in grupo if alt == -1)
+    sharps = sum(1 for alt in grupo if alt == 1)
 
     if flats > 0 and sharps == 0:
         return -flats
@@ -948,14 +1044,42 @@ def _colocar_en_pagina(
     """Calcula las posiciones (x, base, tam, sin_hueco) para cada nota de la página.
 
     Modifica las notas in-place. No dibuja en el PDF.
+    Las notas con fija=True conservan su posición y se registran como ocupadas
+    para que las demás las eviten.
     """
+    from nombres import MARCA_LIGADA as _ML
+
     tinta = _Tinta(page)
     prioritaria = _Prioritaria(page)
     colocadas: list[pymupdf.Rect] = []
 
+    # Primer paso: registrar notas fijas en la lista de zonas ocupadas
+    for nota in notas_pagina:
+        if not nota.fija or nota.x is None or nota.base is None or nota.tam is None:
+            continue
+        if not nota.texto:
+            continue
+        if nota.texto == _ML:
+            tam_ef = nota.tam * 1.8
+            w = fuente.text_length(nota.texto, fontsize=tam_ef)
+            r = pymupdf.Rect(
+                nota.x + w * 0.3, nota.base - tam_ef * 0.38,
+                nota.x + w * 0.7, nota.base - tam_ef * 0.2,
+            )
+        else:
+            w = fuente.text_length(nota.texto, fontsize=nota.tam)
+            r = pymupdf.Rect(
+                nota.x, nota.base - nota.tam * 0.70,
+                nota.x + w, nota.base + nota.tam * 0.05,
+            )
+        colocadas.append(r)
+
+    # Segundo paso: colocar notas no fijas
     for nota in notas_pagina:
         if nota.texto is None:
             continue
+        if nota.fija:
+            continue   # ya registrada; posición preservada
         pent = pents[nota.linea - 1]
         e = pent.espacio
         siguiente = next(
@@ -1057,16 +1181,23 @@ def _hay_silencio_entre(
     return False
 
 
-def _nombre_por_paso(elemento, paso: int) -> Optional[str]:
-    """Nombre de la nota de ``elemento`` (nota o acorde) que está en ese paso del pentagrama."""
+def _pitch_por_paso(elemento, paso: int):
+    """Pitch de la nota de ``elemento`` (nota o acorde) que está en ese paso del pentagrama."""
     from music21 import clef as m21clef
-    from nombres import nombre_nota
 
     cl = elemento.getContextByClass(m21clef.Clef) or m21clef.BassClef()
     for p in elemento.pitches:
         if p.diatonicNoteNum - cl.lowestLine == paso:
-            return nombre_nota(p)
+            return p
     return None
+
+
+def _nombre_por_paso(elemento, paso: int) -> Optional[str]:
+    """Nombre de la nota de ``elemento`` (nota o acorde) que está en ese paso del pentagrama."""
+    from nombres import nombre_nota
+
+    p = _pitch_por_paso(elemento, paso)
+    return nombre_nota(p) if p is not None else None
 
 
 def analizar(pdf: Path, partitura) -> Analisis:
@@ -1143,18 +1274,17 @@ def analizar(pdf: Path, partitura) -> Analisis:
         alt_dibujada = _alteracion_impresa(chars[num_pagina], h, pents[h.pent])
         if alt_dibujada is None:
             continue
-        omr_note = ref[i]
-        omr_alter = (
-            int(round(omr_note.pitch.alter))
-            if omr_note.pitch.accidental is not None
-            else 0
-        )
+        # En un acorde, la nota de esta cabeza es la que está a su altura
+        omr_pitch = _pitch_por_paso(ref[i], h.paso)
+        if omr_pitch is None:
+            continue
+        omr_alter = int(round(omr_pitch.alter)) if omr_pitch.accidental is not None else 0
         if alt_dibujada != omr_alter:
             from music21 import pitch as m21pitch
             from nombres import nombre_nota
             p = m21pitch.Pitch()
-            p.step = omr_note.pitch.step
-            p.octave = omr_note.pitch.octave
+            p.step = omr_pitch.step
+            p.octave = omr_pitch.octave
             if alt_dibujada != 0:
                 p.accidental = m21pitch.Accidental(alt_dibujada)
             textos[i] = nombre_nota(p)
@@ -1262,6 +1392,9 @@ def analizar(pdf: Path, partitura) -> Analisis:
             motivo=motivos[i],
         ))
 
+    # Paso 8b: detectar acordes por geometría del PDF
+    _detectar_acordes(notas_colocadas, heads)
+
     # Avisos de armadura (desde cambios mid-línea)
     for k, cambios in cambios_arm_pdf.items():
         for x_dbl, nuevo_arm in cambios:
@@ -1280,6 +1413,85 @@ def analizar(pdf: Path, partitura) -> Analisis:
         avisos=avisos,
         _pentagramas=pents,
     )
+
+
+def _detectar_acordes(notas: list[NotaColocada], heads: list[Cabeza]) -> None:
+    """Detecta acordes por geometría del PDF usando criterio no transitivo.
+
+    Dos criterios de par (con ancho medio = (w1+w2)/2):
+    (a) mismo-tallo:       |Δxc| ≤ 0.35 × ancho_medio
+    (b) segunda-desplazada: 0.75 × ancho_medio ≤ |Δxc| ≤ 1.05 × ancho_medio
+                            Y |Δpaso| == 1
+
+    Un acorde = «columna» (heads que cumplen (a) respecto al anchor izquierdo)
+    más las «segundas» directamente adyacentes a la columna por criterio (b).
+    Sin encadenamiento transitivo: las segundas no expanden la columna.
+    Modifica ``notas`` in-place.
+    """
+    from collections import defaultdict
+
+    # Agrupar índices por linea (pentagrama)
+    por_linea: dict[int, list[int]] = defaultdict(list)
+    for i, nota in enumerate(notas):
+        por_linea[nota.linea].append(i)
+
+    siguiente_id_acorde = 0
+    for idx_linea in por_linea.values():
+        # Ordenar por centro x de la cabeza
+        idx_linea.sort(key=lambda i: (notas[i].cabeza[0] + notas[i].cabeza[2]) / 2.0)
+        asignado: set[int] = set()
+
+        for anchor_i in idx_linea:
+            if anchor_i in asignado:
+                continue
+            anchor_xc = (notas[anchor_i].cabeza[0] + notas[anchor_i].cabeza[2]) / 2.0
+            anchor_w  = notas[anchor_i].cabeza[2] - notas[anchor_i].cabeza[0]
+
+            # Paso 1: columna — todos los heads no asignados dentro de 0.35×ancho_medio
+            columna = [anchor_i]
+            for other_i in idx_linea:
+                if other_i == anchor_i or other_i in asignado:
+                    continue
+                other_xc = (notas[other_i].cabeza[0] + notas[other_i].cabeza[2]) / 2.0
+                other_w  = notas[other_i].cabeza[2] - notas[other_i].cabeza[0]
+                w_medio  = (anchor_w + other_w) / 2.0
+                if abs(other_xc - anchor_xc) <= 0.35 * w_medio:
+                    columna.append(other_i)
+
+            # Paso 2: segundas desplazadas — criterio (b) respecto a cualquier miembro
+            # de la columna; sin propagar a partir de ellas
+            segundas: list[int] = []
+            for other_i in idx_linea:
+                if other_i in asignado or other_i in columna:
+                    continue
+                other_xc = (notas[other_i].cabeza[0] + notas[other_i].cabeza[2]) / 2.0
+                other_w  = notas[other_i].cabeza[2] - notas[other_i].cabeza[0]
+                for col_i in columna:
+                    col_xc  = (notas[col_i].cabeza[0] + notas[col_i].cabeza[2]) / 2.0
+                    col_w   = notas[col_i].cabeza[2] - notas[col_i].cabeza[0]
+                    w_medio = (other_w + col_w) / 2.0
+                    delta_x    = abs(other_xc - col_xc)
+                    delta_paso = abs(heads[other_i].paso - heads[col_i].paso)
+                    if 0.75 * w_medio <= delta_x <= 1.05 * w_medio and delta_paso == 1:
+                        segundas.append(other_i)
+                        break
+
+            acorde = columna + segundas
+            if len(acorde) >= 2:
+                # Ordenar de agudo a grave (menor y = más agudo)
+                acorde.sort(key=lambda i: notas[i].cabeza[1])
+                id_acorde = siguiente_id_acorde
+                siguiente_id_acorde += 1
+                for i in acorde:
+                    notas[i].acorde = id_acorde
+                    # Marcar como dudosa solo si no hay ya un motivo más informativo
+                    if notas[i].estado == "ok":
+                        notas[i].estado = "dudosa"
+                        notas[i].motivo = "Acorde: comprueba sus notas"
+                    elif notas[i].estado not in ("deducida", "dudosa"):
+                        notas[i].estado = "dudosa"
+                        notas[i].motivo = "Acorde: comprueba sus notas"
+                asignado.update(acorde)
 
 
 def _marcar_dudosas_por_armadura(
@@ -1340,12 +1552,13 @@ def colocar_nombres(analisis: Analisis) -> None:
     pents = analisis._pentagramas
     fuente = pymupdf.Font(FUENTE_NOMBRE)
 
-    # Resetear estado de colocación anterior
+    # Resetear estado de colocación anterior (solo notas NO fijas)
     for nota in analisis.notas:
-        nota.x = None
-        nota.base = None
-        nota.tam = None
-        nota.sin_hueco = False
+        if not nota.fija:
+            nota.x = None
+            nota.base = None
+            nota.tam = None
+            nota.sin_hueco = False
 
     for num, page in enumerate(doc):
         notas_pag = [n for n in analisis.notas if n.pagina == num]

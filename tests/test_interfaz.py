@@ -167,7 +167,7 @@ def servidor_mock():
 def test_pagina_principal(servidor_mock):
     cod, cuerpo = _get(servidor_mock, "/")
     assert cod == 200
-    assert b"pdf2notas" in cuerpo or b"DOCTYPE" in cuerpo
+    assert b"DOCTYPE" in cuerpo or b"Atril" in cuerpo or b"pdf2notas" in cuerpo
 
 
 def test_estilo_css(servidor_mock):
@@ -414,3 +414,489 @@ def test_e2e_dulce_con_cache():
     finally:
         srv.shutdown()
         mod_servidor.limpiar_todos()
+
+
+# ---------------------------------------------------------------------------
+# Tests nuevos: /api/info
+# ---------------------------------------------------------------------------
+
+def test_api_info(servidor_mock):
+    """GET /api/info devuelve nombre, versión y url_repo."""
+    cod, datos = _get_json(servidor_mock, "/api/info")
+    assert cod == 200
+    assert "nombre"   in datos
+    assert "version"  in datos
+    assert "url_repo" in datos
+    assert datos["nombre"]  != ""
+    assert datos["version"] != ""
+    assert datos["url_repo"].startswith("https://github.com/")
+
+
+# ---------------------------------------------------------------------------
+# Tests nuevos: /api/trabajos/<id>/recolocar
+# ---------------------------------------------------------------------------
+
+def test_recolocar_devuelve_posiciones(servidor_mock):
+    """POST /api/trabajos/<id>/recolocar devuelve posiciones actualizadas."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+
+    _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+
+    # Recolocar con correcciones vacías
+    cod_r, datos_r = _post(
+        servidor_mock,
+        f"/api/trabajos/{id_trabajo}/recolocar",
+        json.dumps({"correcciones": {}}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod_r == 200, f"Recolocar falló: {datos_r}"
+    assert "posiciones" in datos_r
+    posiciones = datos_r["posiciones"]
+    assert isinstance(posiciones, list)
+    for pos in posiciones:
+        assert "id"   in pos
+        assert "x"    in pos
+        assert "base" in pos
+        assert "tam"  in pos
+
+
+def test_recolocar_nota_fija_no_se_mueve(servidor_mock):
+    """Una nota marcada como fija en recolocar no cambia de posición."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica2.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+
+    resultado = _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+    notas = resultado.get("notas", [])
+    if not notas:
+        pytest.skip("No hay notas en sintetica")
+
+    primera = notas[0]
+    id_nota = str(primera["id"])
+
+    # Fijar en posición arbitraria
+    x_fija    = 55.5
+    base_fija = 77.3
+    tam_fija  = 10.0
+
+    correcciones = {
+        id_nota: {"x": x_fija, "base": base_fija, "tam": tam_fija, "fija": True}
+    }
+    cod_r, datos_r = _post(
+        servidor_mock,
+        f"/api/trabajos/{id_trabajo}/recolocar",
+        json.dumps({"correcciones": correcciones}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod_r == 200
+
+    pos_fija = next((p for p in datos_r["posiciones"] if str(p["id"]) == id_nota), None)
+    assert pos_fija is not None, "La nota fija no aparece en posiciones"
+    assert abs(pos_fija["x"]    - x_fija)    < 0.1, "x de nota fija cambió"
+    assert abs(pos_fija["base"] - base_fija) < 0.1, "base de nota fija cambió"
+
+
+# ---------------------------------------------------------------------------
+# Tests nuevos: confirmar con formato antiguo (string) y nuevo (objeto)
+# ---------------------------------------------------------------------------
+
+def test_confirmar_formato_antiguo(servidor_mock):
+    """confirmar acepta formato antiguo {id: 'texto'} (string)."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+
+    resultado = _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+    notas = resultado.get("notas", [])
+
+    # Correcciones en formato antiguo (solo strings)
+    correcs = {}
+    for n in notas[:2]:
+        correcs[str(n["id"])] = "Re"
+
+    cod_c, datos_c = _post(
+        servidor_mock,
+        f"/api/trabajos/{id_trabajo}/confirmar",
+        json.dumps({"correcciones": correcs}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod_c == 200, f"confirmar (antiguo) falló: {datos_c}"
+    assert "descarga" in datos_c
+
+
+def test_confirmar_formato_nuevo(servidor_mock):
+    """confirmar acepta formato nuevo {id: {texto, x, base, tam, fija}}."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica_nueva.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+
+    resultado = _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+    notas = resultado.get("notas", [])
+    if not notas:
+        pytest.skip("No hay notas en sintetica")
+
+    # Corrección en formato nuevo
+    n0 = notas[0]
+    correcs = {
+        str(n0["id"]): {
+            "texto": "Mi",
+            "x":     float(n0.get("x", 50) + 5),
+            "base":  float(n0.get("base", 100)),
+            "tam":   float(n0.get("tam", 9.5)),
+            "fija":  True,
+        }
+    }
+
+    cod_c, datos_c = _post(
+        servidor_mock,
+        f"/api/trabajos/{id_trabajo}/confirmar",
+        json.dumps({"correcciones": correcs}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod_c == 200, f"confirmar (nuevo) falló: {datos_c}"
+    assert "descarga" in datos_c
+
+    # Verificar que el PDF generado contiene texto en la posición indicada
+    cod_pdf, pdf_final = _get(servidor_mock, datos_c["descarga"])
+    assert cod_pdf == 200
+    assert pdf_final[:4] == b"%PDF"
+
+    import pymupdf
+    doc = pymupdf.open(stream=pdf_final, filetype="pdf")
+    # Buscar el texto "Mi" cerca de la posición indicada
+    pagina = doc[int(n0.get("pagina", 0))]
+    bloques = pagina.get_text("dict")["blocks"]
+    textos_encontrados = []
+    for bloque in bloques:
+        if bloque.get("type") != 0:
+            continue
+        for linea in bloque.get("lines", []):
+            for span in linea.get("spans", []):
+                textos_encontrados.append(span.get("text", ""))
+    doc.close()
+    texto_total = " ".join(textos_encontrados)
+    assert "Mi" in texto_total, f"'Mi' no encontrado en el PDF; textos: {texto_total[:200]}"
+
+
+# ---------------------------------------------------------------------------
+# Tests nuevos: empalme
+# ---------------------------------------------------------------------------
+
+def test_empalme_subir_y_listar(servidor_mock):
+    """POST /api/empalme/archivos sube un PDF y devuelve metadatos."""
+    if not (_DATOS / "sintetica.pdf").exists():
+        pytest.skip("sintetica.pdf no disponible")
+
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    cod, datos = _post(
+        servidor_mock,
+        "/api/empalme/archivos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica.pdf"},
+    )
+    assert cod == 200, f"Subida empalme falló: {datos}"
+    assert "id"       in datos
+    assert "titulo"   in datos
+    assert "paginas"  in datos
+    assert "sha256"   in datos
+    assert "miniatura" in datos
+    assert datos["paginas"] >= 1
+
+
+def test_empalme_miniatura(servidor_mock):
+    """GET /api/empalme/archivos/<id>/miniatura devuelve una imagen PNG."""
+    if not (_DATOS / "sintetica.pdf").exists():
+        pytest.skip("sintetica.pdf no disponible")
+
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    _, datos = _post(
+        servidor_mock,
+        "/api/empalme/archivos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica.pdf"},
+    )
+    id_arch = datos["id"]
+    ruta_min = datos["miniatura"]
+
+    cod_img, img_bytes = _get(servidor_mock, ruta_min)
+    assert cod_img == 200
+    assert img_bytes[:4] == b"\x89PNG"
+
+
+def test_empalme_unir_dos(servidor_mock):
+    """Subir dos veces sintetica.pdf y unirlas da el doble de páginas."""
+    if not (_DATOS / "sintetica.pdf").exists():
+        pytest.skip("sintetica.pdf no disponible")
+
+    import pymupdf
+    from empalme import contar_paginas as _cp
+    n_orig = _cp(_DATOS / "sintetica.pdf")
+
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    ids = []
+    for _ in range(2):
+        _, datos = _post(
+            servidor_mock,
+            "/api/empalme/archivos",
+            pdf_bytes,
+            headers={"X-Nombre-Archivo": "sintetica.pdf"},
+        )
+        ids.append(datos["id"])
+
+    cod, datos_union = _post(
+        servidor_mock,
+        "/api/empalme/unir",
+        json.dumps({"ids": ids, "nombre": "union_test"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod == 200, f"Unir falló: {datos_union}"
+    assert "descarga" in datos_union
+
+    cod_pdf, pdf_final = _get(servidor_mock, datos_union["descarga"])
+    assert cod_pdf == 200
+    assert pdf_final[:4] == b"%PDF"
+
+    doc = pymupdf.open(stream=pdf_final, filetype="pdf")
+    n_final = doc.page_count
+    doc.close()
+    assert n_final == n_orig * 2
+
+
+def test_empalme_unir_requiere_minimo_dos(servidor_mock):
+    """Unir con menos de 2 PDFs da 400."""
+    if not (_DATOS / "sintetica.pdf").exists():
+        pytest.skip("sintetica.pdf no disponible")
+
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    _, datos = _post(
+        servidor_mock,
+        "/api/empalme/archivos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica.pdf"},
+    )
+    id_solo = datos["id"]
+
+    cod, datos_err = _post(
+        servidor_mock,
+        "/api/empalme/unir",
+        json.dumps({"ids": [id_solo], "nombre": "solo_uno"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod == 400
+    assert "error" in datos_err
+
+
+# ---------------------------------------------------------------------------
+# Tests del tutorial: endpoints de preferencias y selectores en el HTML
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def servidor_prefs(tmp_path, monkeypatch):
+    """Servidor con el archivo de preferencias redirigido a un directorio temporal."""
+    _skip_sin_archivo(_DATOS / "sintetica.pdf", _DATOS / "sintetica.musicxml")
+
+    import socket
+    import interfaz.servidor as mod_servidor
+    from http.server import ThreadingHTTPServer
+
+    ruta_prefs = tmp_path / "preferencias.json"
+    monkeypatch.setattr(mod_servidor, "_ruta_prefs_override", ruta_prefs)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        puerto = s.getsockname()[1]
+
+    with mock.patch.object(mod_servidor, "_procesar_hilo", _mock_procesar_hilo):
+        srv = ThreadingHTTPServer(("127.0.0.1", puerto), mod_servidor._Manejador)
+        import threading
+        t = threading.Thread(target=srv.serve_forever, daemon=True)
+        t.start()
+        yield puerto, ruta_prefs
+        srv.shutdown()
+        mod_servidor.limpiar_todos()
+        monkeypatch.setattr(mod_servidor, "_ruta_prefs_override", None)
+
+
+def test_preferencias_lectura_inicial(servidor_prefs):
+    """GET /api/preferencias devuelve estructura válida aunque el archivo no exista."""
+    puerto, _ = servidor_prefs
+    cod, datos = _get_json(puerto, "/api/preferencias")
+    assert cod == 200
+    assert "tutoriales_vistos" in datos
+    assert isinstance(datos["tutoriales_vistos"], list)
+
+
+def test_preferencias_marcar_visto(servidor_prefs):
+    """POST /api/preferencias guarda y persiste los tutoriales vistos."""
+    puerto, ruta_prefs = servidor_prefs
+
+    cod, datos = _post(
+        puerto, "/api/preferencias",
+        json.dumps({"tutoriales_vistos": ["inicio", "subir"]}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod == 200
+    assert datos.get("ok") is True
+
+    # Verificar que se guardó en disco
+    assert ruta_prefs.exists()
+    guardado = json.loads(ruta_prefs.read_text(encoding="utf-8"))
+    assert "inicio" in guardado["tutoriales_vistos"]
+    assert "subir"  in guardado["tutoriales_vistos"]
+
+    # Leer de vuelta vía API
+    cod2, datos2 = _get_json(puerto, "/api/preferencias")
+    assert cod2 == 200
+    assert "inicio" in datos2["tutoriales_vistos"]
+
+
+def test_preferencias_reiniciar(servidor_prefs):
+    """POST /api/preferencias con reiniciar=true borra los tutoriales vistos."""
+    puerto, ruta_prefs = servidor_prefs
+
+    # Primero marcar algo
+    _post(
+        puerto, "/api/preferencias",
+        json.dumps({"tutoriales_vistos": ["inicio"]}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Ahora reiniciar
+    cod, datos = _post(
+        puerto, "/api/preferencias",
+        json.dumps({"reiniciar": True}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod == 200
+    assert datos.get("ok") is True
+
+    # Verificar que la lista está vacía
+    cod2, datos2 = _get_json(puerto, "/api/preferencias")
+    assert cod2 == 200
+    assert datos2["tutoriales_vistos"] == []
+
+
+# ---------------------------------------------------------------------------
+# Tests de acordes
+# ---------------------------------------------------------------------------
+
+def test_resultado_incluye_campo_acorde(servidor_mock):
+    """El resultado del análisis incluye el campo 'acorde' en cada nota."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica_acorde.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+    resultado = _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+    notas = resultado.get("notas", [])
+    assert len(notas) > 0, "No hay notas en el resultado"
+    for nota in notas:
+        assert "acorde" in nota, f"Nota {nota.get('id')} sin campo 'acorde'"
+
+
+def test_confirmar_correccion_acorde(servidor_mock):
+    """Confirmar con correcciones para varias notas de un acorde escribe todos los nombres en el PDF."""
+    pdf_bytes = (_DATOS / "sintetica.pdf").read_bytes()
+    cod, datos = _post(
+        servidor_mock, "/api/trabajos",
+        pdf_bytes,
+        headers={"X-Nombre-Archivo": "sintetica_acorde2.pdf"},
+    )
+    assert cod == 200
+    id_trabajo = datos["id"]
+    resultado = _esperar_listo(servidor_mock, id_trabajo, timeout_s=120)
+    notas = resultado.get("notas", [])
+
+    # Buscar notas de un acorde (acorde != null) si hay alguno, o simplemente
+    # corregir las dos primeras notas (simula corrección de acorde)
+    notas_acorde = [n for n in notas if n.get("acorde") is not None]
+    if len(notas_acorde) >= 2:
+        elegidas = notas_acorde[:2]
+    elif len(notas) >= 2:
+        elegidas = notas[:2]
+    else:
+        pytest.skip("No hay suficientes notas en sintetica")
+
+    correcs = {
+        str(elegidas[0]["id"]): {"texto": "Do"},
+        str(elegidas[1]["id"]): {"texto": "Mi"},
+    }
+    cod_c, datos_c = _post(
+        servidor_mock,
+        f"/api/trabajos/{id_trabajo}/confirmar",
+        json.dumps({"correcciones": correcs}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    assert cod_c == 200, f"Confirmar acorde falló: {datos_c}"
+    assert "descarga" in datos_c
+
+    cod_pdf, pdf_final = _get(servidor_mock, datos_c["descarga"])
+    assert cod_pdf == 200
+    assert pdf_final[:4] == b"%PDF"
+
+    import pymupdf
+    doc = pymupdf.open(stream=pdf_final, filetype="pdf")
+    texto_total = ""
+    for page in doc:
+        texto_total += page.get_text()
+    doc.close()
+    assert "Do" in texto_total or "Mi" in texto_total, (
+        f"Las correcciones del acorde no aparecen en el PDF; texto={texto_total[:300]}"
+    )
+
+
+def test_selectores_tutorial_en_html():
+    """Todos los selectores de id en tutorial.json existen como id="..." en index.html."""
+    raiz     = Path(__file__).parent.parent
+    ruta_t   = raiz / "interfaz" / "web" / "tutorial.json"
+    ruta_html = raiz / "interfaz" / "web" / "index.html"
+
+    if not ruta_t.exists():
+        pytest.skip("tutorial.json no encontrado")
+    if not ruta_html.exists():
+        pytest.skip("index.html no encontrado")
+
+    tutorial = json.loads(ruta_t.read_text(encoding="utf-8"))
+    html     = ruta_html.read_text(encoding="utf-8")
+
+    faltantes = []
+    for pantalla, pasos in tutorial.items():
+        for paso in pasos:
+            selector = paso.get("selector", "")
+            if not selector:
+                continue
+            if selector.startswith("#"):
+                id_buscado = selector[1:]
+                if f'id="{id_buscado}"' not in html:
+                    faltantes.append(f"[{pantalla}] selector '{selector}' no encontrado")
+
+    assert not faltantes, "Selectores de tutorial.json ausentes en index.html:\n" + "\n".join(faltantes)

@@ -5,24 +5,44 @@
 *.omr
 # Única excepción: la partitura sintética generada por nosotros para los tests.
 !tests/datos/sintetica.pdf
+# Partitura de notas agudas generada por nosotros (MuseScore) y su lectura de Audiveris
+!tests/datos/agudas.pdf
+!tests/datos/agudas_omr.mxl
 
 # Resultados e intermedios del programa
 *_notas.pdf
 *_pdf2notas/
 
+# Directorios de construcción y empaquetado
+build/
+dist/
+empaquetado/salida/
+*.spec.bak
+
 # Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
+env/
 
-# Empaquetado (.exe / zip)
-build/
-dist/
-*.spec
+# IDEs
+.vscode/
+.idea/
+*.swp
 
 # Sistema
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Archivos de trabajo temporales
+*.tmp
+*.log
+
+# Skills de terceros instaladas en local (no son código del proyecto)
+.claude/skills/
+skills-lock.json

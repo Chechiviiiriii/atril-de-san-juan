@@ -1,0 +1,46 @@
+ATRIL DE SAN JUAN
+Programa gratuito para la A.M. Stmo. Cristo de la Salud (Alcalá la Real)
+================================================================================
+
+Este programa es software libre y de código abierto. Puede distribuirse y
+modificarse libremente de acuerdo con los términos de las licencias que se
+indican a continuación.
+
+Código fuente:
+  https://github.com/Chechiviiiriii/atril-de-san-juan
+
+--------------------------------------------------------------------------------
+COMPONENTES Y LICENCIAS
+--------------------------------------------------------------------------------
+
+Atril de San Juan utiliza los siguientes componentes de terceros:
+
+  • Audiveris (https://github.com/Audiveris/audiveris)
+    Licencia: GNU Affero General Public License v3.0 (AGPL-3.0)
+    Reconocimiento óptico de música (OMR).
+
+  • PyMuPDF / MuPDF (https://pymupdf.readthedocs.io)
+    Licencia: GNU Affero General Public License v3.0 (AGPL-3.0)
+    Lectura y generación de archivos PDF.
+
+  • music21 (https://web.mit.edu/music21/)
+    Licencia: BSD 3-Clause
+    Análisis y procesamiento de notación musical.
+
+  • pywebview (https://pywebview.flowrl.com)
+    Licencia: BSD 3-Clause
+    Interfaz gráfica de usuario.
+
+El texto completo de la licencia AGPL-3.0 está disponible en:
+  https://www.gnu.org/licenses/agpl-3.0.html
+
+--------------------------------------------------------------------------------
+ADVERTENCIA DE FIRMA
+--------------------------------------------------------------------------------
+
+Este instalador está firmado con un certificado autofirmado del autor.
+Windows puede mostrar un aviso de "Windows protegió su PC". Para continuar,
+pulse "Más información" y luego "Ejecutar de todas formas".
+
+En cuanto el repositorio sea público, se solicitará firma gratuita a través
+de SignPath Foundation (https://signpath.io) para proyectos de código abierto.

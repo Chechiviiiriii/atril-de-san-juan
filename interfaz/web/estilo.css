@@ -1,5 +1,5 @@
 /* ============================================================
-   pdf2notas — Hoja de estilo principal
+   Atril de San Juan — Hoja de estilo principal
    Agrupación Musical Stmo. Cristo de la Salud — Alcalá la Real
    ============================================================ */
 
@@ -13,13 +13,14 @@
 
     --texto:          #f2f2f2;
     --texto-2:        #b5b5b8;
-    --texto-3:        #7d7d82;
+    --texto-3:        #96969c;   /* 5,3:1 sobre las tarjetas (antes 3,8:1) */
 
     --primario:       #ffffff;
     --primario-texto: #0f0f10;
 
     --amber:          #f59e0b;
-    --rojo:           #e5484d;
+    --rojo:           #f26d71;   /* 5,4:1 sobre las tarjetas */
+    --rojo-papel:     #b42318;   /* nombres dudosos sobre la partitura blanca: 5,4:1 */
     --verde:          #22c55e;
     --azul:           #4e86f5;
 
@@ -46,7 +47,7 @@ body {
     font-family: var(--fuente-cuerpo);
     font-size: 14px;
     line-height: 1.5;
-    overflow: hidden;          /* el scroll es por sección */
+    overflow: hidden;
 }
 
 /* Textura sutil con SVG inline */
@@ -104,17 +105,32 @@ body::before {
     line-height: 1.15;
     flex-shrink: 0;
 }
+.cabecera-marca-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    line-height: inherit;
+    transition: opacity 150ms;
+}
+.cabecera-marca-btn:hover { opacity: 0.75; }
 .nombre-app {
     font-family: var(--fuente-titulo);
     font-weight: 800;
-    font-size: 1.25rem;
-    letter-spacing: 0.08em;
+    font-size: 1.18rem;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     color: var(--texto);
 }
 .subtitulo-banda {
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--texto-3);
     font-weight: 400;
@@ -166,6 +182,177 @@ body::before {
 .paso.activo { display: flex; flex-direction: column; }
 
 /* ============================================================
+   PASO 0 — INICIO (selección de función)
+   ============================================================ */
+#paso-inicio {
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Fondo hero con imagen de Cristo (parte izquierda solamente) */
+.hero-imagen {
+    position: absolute;
+    inset: 0;
+    background: url('img/cabecera.jpg') left center / auto 100% no-repeat;
+    z-index: 0;
+}
+
+/* Gradiente que oculta la parte con texto del poster antes de que lo tape la UI */
+.hero-oscuro {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to right,
+        rgba(10,10,11,0.18) 0%,
+        rgba(10,10,11,0.55) 30%,
+        rgba(10,10,11,0.88) 52%,
+        rgba(10,10,11,0.97) 65%,
+        var(--fondo) 80%
+    );
+    z-index: 1;
+}
+
+.inicio-contenido {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem 2rem 1rem;
+    max-width: 640px;
+    width: 100%;
+}
+
+.escudo-grande {
+    height: 80px;
+    width: auto;
+    object-fit: contain;
+    opacity: 0.88;
+}
+.escudo-grande-blanco {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.88);
+    padding: 8px;
+}
+
+/* Bloque de bienvenida */
+.cabecera-banda {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+.banda-bienvenida {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    font-weight: 400;
+}
+.banda-titulo-app {
+    font-family: var(--fuente-titulo);
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--texto);
+}
+.banda-linea-datos {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    margin-top: 0.3rem;
+}
+
+/* Tarjetas de función */
+.inicio-tarjetas {
+    display: flex;
+    gap: 1.25rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.tarjeta-funcion {
+    flex: 1;
+    max-width: 240px;
+    background: var(--fondo-card);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1.5rem 1.25rem 1.75rem;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    transition: background 150ms, border-color 150ms, transform 100ms;
+    box-shadow: var(--sombra-card);
+    color: var(--texto);
+    font-family: var(--fuente-cuerpo);
+}
+.tarjeta-funcion:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.22);
+    transform: translateY(-2px);
+}
+.tarjeta-funcion:active { transform: translateY(0); }
+.tarjeta-funcion:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+.tarjeta-funcion-icono {
+    width: 52px;
+    height: 52px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--texto-2);
+}
+.tarjeta-funcion-icono svg { width: 28px; height: 28px; }
+.tarjeta-funcion-titulo {
+    font-family: var(--fuente-titulo);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    color: var(--texto);
+}
+.tarjeta-funcion-desc {
+    font-size: 0.75rem;
+    color: var(--texto-3);
+    line-height: 1.45;
+}
+
+/* Pie de página con licencia */
+.inicio-pie {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    letter-spacing: 0.02em;
+}
+.pie-sep { opacity: 0.5; }
+.pie-enlace {
+    color: var(--texto-3);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 150ms;
+}
+.pie-enlace:hover { color: var(--texto-2); }
+
+/* ============================================================
    PASO 1 — SUBIR
    ============================================================ */
 #paso-subir {
@@ -175,24 +362,9 @@ body::before {
     justify-content: center;
 }
 
-/* Fondo con la imagen de cabecera */
-.hero-imagen {
-    position: absolute;
-    inset: 0;
-    background: url('img/cabecera.jpg') center / cover no-repeat;
-    z-index: 0;
-}
-.hero-oscuro {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-        to right,
-        rgba(10,10,11,0.40) 0%,
-        rgba(10,10,11,0.72) 45%,
-        rgba(10,10,11,0.92) 65%,
-        rgba(10,10,11,0.97) 100%
-    );
-    z-index: 1;
+/* El fondo hero también se usa en el paso de subida */
+#paso-subir .hero-imagen {
+    background: url('img/cabecera.jpg') left center / auto 100% no-repeat;
 }
 
 .paso-subir-contenido {
@@ -207,67 +379,6 @@ body::before {
     width: 100%;
 }
 
-.escudo-grande {
-    height: 96px;
-    width: auto;
-    object-fit: contain;
-    opacity: 0.92;
-}
-.escudo-grande-blanco {
-    border-radius: 50%;
-    background: rgba(255,255,255,0.88);
-    padding: 8px;
-}
-
-/* ---- Encabezado de la banda (paso 1) ---- */
-.cabecera-banda {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-}
-.banda-titulo-1 {
-    font-family: var(--fuente-titulo);
-    font-weight: 800;
-    font-size: 1.15rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--texto);
-}
-.banda-titulo-2 {
-    font-family: var(--fuente-titulo);
-    font-weight: 400;
-    font-size: 0.9rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--texto-2);
-}
-.banda-linea-datos {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--texto-3);
-    margin-top: 0.4rem;
-}
-.banda-linea-datos::before,
-.banda-linea-datos::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 1px;
-    background: var(--texto-3);
-    opacity: 0.5;
-}
-.icono-clave {
-    display: inline-flex;
-    align-items: center;
-    opacity: 0.7;
-}
-
 /* ---- Zona de carga ---- */
 .tarjeta-subir {
     background: var(--fondo-card);
@@ -279,6 +390,7 @@ body::before {
 }
 
 .zona-carga {
+    position: relative;
     border: 2px dashed var(--borde-fuerte);
     border-radius: var(--radio-sm);
     padding: 2.5rem 2rem;
@@ -475,6 +587,12 @@ body::before {
     min-width: 42px;
     text-align: center;
 }
+.barra-ayuda-teclado {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    margin-left: auto;
+    user-select: none;
+}
 
 /* ---- Área de páginas ---- */
 .scroll-paginas {
@@ -501,12 +619,13 @@ body::before {
     width: 100%;
     height: auto;
     user-select: none;
+    -webkit-user-drag: none;
 }
 
 .notas-overlay {
     position: absolute;
     inset: 0;
-    pointer-events: none;   /* las notas habilitan eventos individualmente */
+    pointer-events: none;
     overflow: hidden;
 }
 
@@ -514,14 +633,17 @@ body::before {
 .nota-nombre {
     position: absolute;
     font-family: var(--fuente-nota);
-    font-size: 9.5px;       /* se sobreescribe por JS */
+    font-size: 9.5px;
     line-height: 1;
     white-space: nowrap;
     pointer-events: all;
     cursor: pointer;
     border-radius: 3px;
-    padding: 0 1px;
+    /* Área de clic generosa con padding invisible */
+    padding: 4px 3px;
+    margin: -4px -3px;
     transition: background 100ms;
+    user-select: none;
 }
 .nota-nombre:hover {
     background: rgba(255,255,255,0.18);
@@ -531,10 +653,11 @@ body::before {
 }
 .nota-nombre.estado-deducida,
 .nota-nombre.estado-dudosa {
-    color: var(--rojo);
+    color: var(--rojo-papel);
     background: rgba(245, 158, 11, 0.22);
     border-radius: 10px;
     padding: 1px 4px;
+    margin: 3px -4px;
     animation: pulso-dudosa 2s ease-in-out infinite;
 }
 .nota-nombre.estado-confirmada {
@@ -542,8 +665,16 @@ body::before {
 }
 .nota-nombre.seleccionada {
     outline: 2px solid var(--azul);
-    outline-offset: 1px;
+    outline-offset: 2px;
     animation: none;
+    background: rgba(78,134,245,0.1);
+}
+/* Cursor durante el arrastre */
+.nota-nombre.arrastrando {
+    cursor: move !important;
+    animation: none;
+    outline-color: var(--amber);
+    z-index: 10;
 }
 @keyframes pulso-dudosa {
     0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
@@ -557,6 +688,20 @@ body::before {
     border-radius: 3px;
     pointer-events: none;
     box-shadow: 0 0 0 1px rgba(78,134,245,0.3);
+}
+
+/* ---- Handle de redimensionado (esquina inferior derecha de .seleccionada) ---- */
+.redim-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--azul);
+    border: 1px solid #fff;
+    border-radius: 2px;
+    cursor: se-resize;
+    z-index: 11;
+    pointer-events: all;
+    /* Posicionado por JS encima de .nota-nombre.seleccionada */
 }
 
 /* ============================================================
@@ -596,7 +741,7 @@ body::before {
     padding: 0.875rem 1rem;
 }
 .resumen-titulo {
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--texto-3);
@@ -676,7 +821,7 @@ body::before {
 }
 .item-dudosa.confirmada .item-dudosa-nota { color: var(--verde); }
 .item-dudosa-motivo {
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     color: var(--texto-3);
     font-style: italic;
 }
@@ -773,6 +918,49 @@ body::before {
 .btn-alt:hover  { background: rgba(255,255,255,0.08); }
 .btn-alt.activo { background: rgba(255,255,255,0.15); color: var(--texto); }
 
+/* Fila de tamaño en el selector */
+.selector-tam-fila {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.selector-tam-label {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.selector-tam-val {
+    font-size: 0.78rem;
+    color: var(--texto-2);
+    min-width: 42px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.btn-tam {
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: 5px;
+    color: var(--texto-2);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: background 120ms;
+    font-family: var(--fuente-cuerpo);
+    white-space: nowrap;
+}
+.btn-tam:hover  { background: rgba(255,255,255,0.1); }
+.btn-tam:active { transform: scale(0.95); }
+
+/* Restablecer posición */
+.selector-restablecer {
+    font-size: 0.72rem;
+    margin-top: -0.25rem;
+    text-align: center;
+}
+
 /* Acciones del popover */
 .selector-acciones {
     display: flex;
@@ -837,8 +1025,40 @@ body::before {
     justify-content: flex-end;
 }
 
+/* Modal de miniatura (empalme) */
+.modal-miniatura-contenido {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+.modal-miniatura-contenido img {
+    max-width: 80vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: var(--radio-sm);
+    box-shadow: 0 16px 64px rgba(0,0,0,0.8);
+}
+.modal-miniatura-cerrar {
+    position: absolute;
+    top: -16px;
+    right: -16px;
+    background: var(--fondo-card);
+    border: 1px solid var(--borde-fuerte);
+    color: var(--texto-2);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 150ms;
+}
+.modal-miniatura-cerrar:hover { background: rgba(255,255,255,0.1); }
+
 /* ============================================================
-   PASO 3 — LISTO
+   PASO LISTO (compartido)
    ============================================================ */
 #paso-listo {
     align-items: center;
@@ -907,6 +1127,223 @@ body::before {
 }
 
 /* ============================================================
+   EMPALME
+   ============================================================ */
+#paso-empalme {
+    overflow-y: auto;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 2rem;
+}
+
+.empalme-contenido {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Zona de carga de empalme (variante grande) */
+.zona-carga-empalme {
+    min-height: 200px;
+}
+
+/* Cabecera de la lista de marchas */
+.empalme-lista-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--fondo-card);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1.25rem;
+    box-shadow: var(--sombra-card);
+}
+
+.empalme-lista-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.empalme-lista-titulo {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--texto-3);
+    flex: 1;
+}
+
+/* Lista de marchas */
+.empalme-lista {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.empalme-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    padding: 0.6rem 0.75rem;
+    transition: background 150ms, border-color 150ms;
+}
+.empalme-item.arrastrado {
+    opacity: 0.5;
+    background: rgba(255,255,255,0.04);
+}
+.empalme-item.sobre {
+    border-color: var(--azul);
+    background: rgba(78,134,245,0.08);
+}
+
+/* Handle de arrastre */
+.empalme-handle {
+    color: var(--texto-3);
+    cursor: grab;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    padding: 0 2px;
+    user-select: none;
+}
+.empalme-handle:active { cursor: grabbing; }
+
+.empalme-orden {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    min-width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.empalme-miniatura {
+    width: 36px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid var(--borde);
+    background: var(--fondo-card);
+    cursor: pointer;
+    transition: opacity 150ms;
+    flex-shrink: 0;
+}
+.empalme-miniatura:hover { opacity: 0.8; }
+
+.empalme-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.empalme-titulo-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--texto);
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 2px 0;
+    width: 100%;
+    transition: border-color 150ms;
+    outline: none;
+}
+.empalme-titulo-input:hover { border-color: var(--borde-fuerte); }
+.empalme-titulo-input:focus { border-color: var(--azul); }
+.empalme-meta {
+    font-size: 0.72rem;
+    color: var(--texto-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Controles de reorden */
+.empalme-controles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.empalme-controles button {
+    background: transparent;
+    border: none;
+    color: var(--texto-3);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    transition: color 150ms;
+}
+.empalme-controles button:hover { color: var(--texto); }
+.empalme-controles button:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.empalme-quitar {
+    background: transparent;
+    border: none;
+    color: var(--texto-3);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px;
+    transition: color 150ms;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.empalme-quitar:hover { color: var(--rojo); }
+
+/* Aviso de duplicado */
+.empalme-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: var(--radio-sm);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.78rem;
+    color: var(--amber);
+}
+
+/* Pie: nombre + botón */
+.empalme-pie {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--borde);
+    margin-top: 0.25rem;
+}
+.empalme-nombre-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--texto-3);
+}
+.empalme-nombre-input {
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio-sm);
+    color: var(--texto);
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.88rem;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 150ms;
+}
+.empalme-nombre-input:focus { border-color: var(--azul); }
+
+/* ============================================================
    TARJETA GENÉRICA
    ============================================================ */
 .tarjeta {
@@ -938,4 +1375,62 @@ body::before {
     .scroll-paginas { padding: 1.5rem; }
     :root { --barra-lateral-w: 260px; }
     .cabecera { padding: 0 1rem; }
+    .inicio-tarjetas { flex-direction: column; align-items: center; }
+    .tarjeta-funcion { max-width: 100%; }
+}
+
+/* ---- Selector de acordes: una fila por nota ---- */
+.acorde-fila {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0 10px;
+    border-bottom: 1px solid var(--borde);
+}
+.acorde-fila:last-of-type { border-bottom: none; }
+.acorde-fila-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--texto);
+}
+.acorde-notas-btns {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+}
+.btn-nota.btn-nota-compacto {
+    font-family: inherit;          /* misma letra que el resto del selector */
+    font-size: 0.78rem;
+    padding: 0.35rem 0;
+    min-width: 0;
+    white-space: nowrap;
+}
+.acorde-alt-btns {
+    display: flex;
+    background: var(--fondo-card-alt);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.btn-alt.btn-alt-compacto {
+    flex: 1;
+    padding: 0.3rem;
+    font-size: 0.9rem;
+}
+
+
+/* ---- Accesibilidad: foco de teclado visible y movimiento reducido ---- */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--azul);
+    outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

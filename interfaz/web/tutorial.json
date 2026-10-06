@@ -1,0 +1,149 @@
+{
+  "inicio": [
+    {
+      "selector": "#paso-inicio",
+      "titulo": "¡Hola! Soy tu guía",
+      "texto": "Soy el músico del Atril de San Juan. Siempre estoy aquí abajo, en la esquina izquierda. Cuando quieras que te explique algo, pincha en mí.",
+      "pose": "saludo_visera"
+    },
+    {
+      "selector": "#btn-funcion-nombres",
+      "titulo": "Poner nombres a las notas",
+      "texto": "Sube una partitura en PDF y el Atril pondrá el nombre de cada nota (Do, Re, Mi…) justo encima de su cabeza. El resultado es otro PDF listo para imprimir."
+    },
+    {
+      "selector": "#btn-funcion-empalme",
+      "titulo": "Empalmar marchas",
+      "texto": "¿Tienes varias marchas por separado y quieres unirlas en un solo PDF? Aquí puedes ordenarlas como quieras y combinarlas de una vez."
+    },
+    {
+      "selector": "#pie-enlace-repo",
+      "titulo": "Fuente y actualizaciones",
+      "texto": "Este enlace lleva al repositorio con el código fuente. Si hay una versión nueva, la encontrarás allí.",
+      "pose": "senala_abajo"
+    },
+    {
+      "selector": "#paso-inicio",
+      "titulo": "¡Listo para empezar!",
+      "texto": "Ya lo sabes todo. Elige una función y ¡a tocar! Recuerda: si tienes dudas, pincha en mí y te lo explico.",
+      "pose": "pulgar",
+      "resetLink": true
+    }
+  ],
+  "subir": [
+    {
+      "selector": "#zona-carga",
+      "titulo": "Arrastra tu partitura aquí",
+      "texto": "Coge el PDF de la partitura desde el explorador de archivos y suéltalo en esta zona. Funciona con PDFs exportados de Sibelius, MuseScore o Finale."
+    },
+    {
+      "selector": "#btn-elegir",
+      "titulo": "O elige el archivo",
+      "texto": "Si prefieres buscarlo en tu carpeta, pulsa este botón y te abre el explorador de archivos para elegir el PDF."
+    },
+    {
+      "selector": "#estado-carga",
+      "titulo": "Ten un poco de paciencia",
+      "texto": "Leer la partitura tarda unos segundos. La primera vez algo más, porque hay que analizar la imagen en detalle.",
+      "pose": "pensando"
+    }
+  ],
+  "revisar": [
+    {
+      "selector": "#scroll-paginas",
+      "titulo": "La partitura con los nombres",
+      "texto": "Aquí ves el PDF original con los nombres de las notas superpuestos, exactamente como quedarán en el PDF final.",
+      "pose": "partitura"
+    },
+    {
+      "selector": "#contador-dudosas",
+      "titulo": "Notas por revisar",
+      "texto": "Audiveris a veces no está del todo seguro de una nota. Las marcadas en ámbar (dudosas) o rojo (deducidas) merecen un vistazo tuyo.",
+      "pose": "pensando"
+    },
+    {
+      "selector": "#nav-dudosas",
+      "titulo": "Navegar entre dudosas",
+      "texto": "Usa estos botones —o las teclas N y P— para saltar de una nota dudosa a la siguiente sin perderte ninguna.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#lista-dudosas",
+      "titulo": "Lista de notas por revisar",
+      "texto": "Aquí tienes el listado completo. Pincha en cualquiera para ir directamente a ella en la partitura."
+    },
+    {
+      "selector": "#scroll-paginas",
+      "titulo": "Cambiar una nota",
+      "texto": "Pincha sobre cualquier nombre para abrir el selector: elige la nota, la alteración y el tamaño, y acepta. También puedes arrastrar la etiqueta a donde necesites.",
+      "pose": "partitura"
+    },
+    {
+      "selector": "#btn-deshacer",
+      "titulo": "Deshacer",
+      "texto": "¿Te has equivocado? Pulsa Deshacer (o Ctrl+Z) para volver atrás las veces que haga falta."
+    },
+    {
+      "selector": "#barra-herramientas",
+      "titulo": "Zoom",
+      "texto": "Usa los botones − y + (o Ctrl+rueda del ratón) para acercar o alejar la partitura. El zoom no afecta al PDF final."
+    },
+    {
+      "selector": "#btn-confirmar",
+      "titulo": "Confirmar y descargar",
+      "texto": "Cuando hayas revisado las notas que quieras, pulsa aquí. En unos segundos tendrás el PDF listo.",
+      "pose": "pulgar"
+    }
+  ],
+  "empalme": [
+    {
+      "selector": "#zona-carga-empalme",
+      "titulo": "Arrastra los PDFs aquí",
+      "texto": "Puedes soltar varios PDFs a la vez. Se añadirán a la lista en el orden en que los sueltes."
+    },
+    {
+      "selector": "#empalme-lista-wrap",
+      "titulo": "Lista de marchas",
+      "texto": "Cada marcha aparece con su miniatura, título y número de páginas. Arrastra las filas (o usa ↑ ↓) para cambiar el orden. Pulsa ✕ para quitar una.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#btn-anyadir-mas",
+      "titulo": "Añadir más marchas",
+      "texto": "¿Te has dejado alguna? Con este botón puedes añadir más PDFs a la lista sin perder lo que ya tienes.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#empalme-nombre-archivo",
+      "titulo": "Nombre del archivo",
+      "texto": "Aquí puedes poner el nombre que quieras al PDF combinado que se va a generar.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#btn-unir",
+      "titulo": "Unir y descargar",
+      "texto": "Con al menos 2 marchas en la lista y el orden que quieras, pulsa aquí. El PDF combinado estará listo en pocos segundos.",
+      "pose": "pulgar",
+      "skipIfHidden": true
+    }
+  ],
+  "listo": [
+    {
+      "selector": "#paso-listo",
+      "titulo": "¡Misión cumplida!",
+      "texto": "¡Enhorabuena! Tu PDF está listo. Ahora puedes guardarlo, abrirlo o volver a empezar.",
+      "pose": "celebra"
+    },
+    {
+      "selector": "#listo-btns",
+      "titulo": "Guardar o abrir",
+      "texto": "Usa el botón de guardar para elegir dónde guardar el PDF, o ábrelo directamente para verlo ahora mismo."
+    },
+    {
+      "selector": "#btn-nueva-partitura",
+      "titulo": "Volver al inicio",
+      "texto": "Cuando termines, vuelve a la pantalla de inicio para procesar otra partitura o empalmar más marchas.",
+      "pose": "saludo_mano"
+    }
+  ]
+}
