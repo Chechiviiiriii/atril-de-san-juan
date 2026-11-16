@@ -6,7 +6,7 @@
 
 #define AppName      "Atril de San Juan"
 #define AppExe       "AtrilDeSanJuan.exe"
-#define AppVersion   "0.1.0"
+#define AppVersion   "0.2.0"
 #define AppPublisher "Jose Maria Funes Jimenez"
 #define AppURL       "https://github.com/Chechiviiiriii/atril-de-san-juan"
 #define AppId        "EB1E08E8-31FE-4ABE-8243-8DCC75B80E53"

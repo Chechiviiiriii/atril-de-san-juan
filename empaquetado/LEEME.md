@@ -34,14 +34,14 @@ El script realiza en orden:
 
 El instalador resultante estará en:
 ```
-empaquetado\salida\Instalar Atril de San Juan 0.1.0.exe
+empaquetado\salida\Instalar Atril de San Juan 0.2.0.exe
 ```
 
 ---
 
 ## Cómo instalar la aplicación
 
-1. Ejecuta `Instalar Atril de San Juan 0.1.0.exe`.
+1. Ejecuta `Instalar Atril de San Juan 0.2.0.exe`.
 2. **Aviso de Windows**: al ser una firma autofirmada, Windows puede mostrar
    el mensaje *"Windows protegió su PC"*. Para continuar:
    - Haz clic en **"Más información"**

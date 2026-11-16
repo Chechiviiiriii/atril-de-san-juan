@@ -33,14 +33,14 @@ def _leer_datos_app() -> tuple[str, str, str]:
             d = _json.loads(ruta_json.read_text(encoding="utf-8"))
             return (
                 d.get("nombre", "Atril de San Juan"),
-                d.get("version", "0.1.0"),
+                d.get("version", "0.2.0"),
                 d.get("url_fuente") or d.get("url_repo") or "https://github.com/Chechiviiiriii/atril-de-san-juan",
             )
         except Exception:
             pass
     return (
         "Atril de San Juan",
-        "0.1.0",
+        "0.2.0",
         "https://github.com/Chechiviiiriii/atril-de-san-juan",
     )
 

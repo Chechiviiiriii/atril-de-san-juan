@@ -71,7 +71,7 @@ def _cargar_datos_app() -> dict:
 
 _DATOS_APP = _cargar_datos_app()
 NOMBRE_APP: str = _DATOS_APP.get("nombre", "Atril de San Juan")
-VERSION_APP: str = _DATOS_APP.get("version", "0.1.0")
+VERSION_APP: str = _DATOS_APP.get("version", "0.2.0")
 
 
 # ---------------------------------------------------------------------------
