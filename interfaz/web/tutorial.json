@@ -8,8 +8,8 @@
     },
     {
       "selector": "#btn-funcion-nombres",
-      "titulo": "Poner nombres a las notas",
-      "texto": "Sube una partitura en PDF y el Atril pondrá el nombre de cada nota (Do, Re, Mi…) justo encima de su cabeza. El resultado es otro PDF listo para imprimir."
+      "titulo": "Poner nombres o números",
+      "texto": "Sube una partitura en PDF y el Atril escribirá debajo de cada nota su nombre (Do, Re, Mi…) o, si lo prefieres, la posición de los pistones de tu instrumento. El resultado es otro PDF listo para imprimir."
     },
     {
       "selector": "#btn-funcion-empalme",
@@ -32,6 +32,28 @@
   ],
   "subir": [
     {
+      "selector": "#modo-escritura",
+      "titulo": "¿Notas o números?",
+      "texto": "Elige «Notas» para escribir el nombre de cada nota (Do, Re, Mib…) o «Números» para escribir la posición de los pistones (1/3, x, 0…)."
+    },
+    {
+      "selector": "#fila-instrumento",
+      "titulo": "Tu instrumento",
+      "texto": "Con «Números» elige aquí tu instrumento: tuba, bombardino de 4 o de 3 pistones, o trombón de pistones. Cada uno tiene su propia tabla de posiciones.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#btn-config-posiciones",
+      "titulo": "Configurar posiciones",
+      "texto": "Aquí ves la lista de notas de cada instrumento con lo que se escribirá al lado. Puedes cambiar cualquier posición y elegir cómo se escribe el 1/2 (por defecto, «x»). Se guarda para la próxima vez.",
+      "skipIfHidden": true
+    },
+    {
+      "selector": "#fila-estilo",
+      "titulo": "Negrita y cursiva",
+      "texto": "Pulsa N para negrita y K para cursiva (o las dos). Vale tanto para los nombres como para los números, y luego también puedes cambiarlo mientras revisas."
+    },
+    {
       "selector": "#zona-carga",
       "titulo": "Arrastra tu partitura aquí",
       "texto": "Coge el PDF de la partitura desde el explorador de archivos y suéltalo en esta zona. Funciona con PDFs exportados de Sibelius, MuseScore o Finale."
@@ -51,8 +73,8 @@
   "revisar": [
     {
       "selector": "#scroll-paginas",
-      "titulo": "La partitura con los nombres",
-      "texto": "Aquí ves el PDF original con los nombres de las notas superpuestos, exactamente como quedarán en el PDF final.",
+      "titulo": "La partitura con los nombres o números",
+      "texto": "Aquí ves el PDF original con los nombres (o las posiciones) superpuestos, exactamente como quedarán en el PDF final. Con «Números», si una nota sale en gris es que no tiene posición en la tabla y no se escribirá.",
       "pose": "partitura"
     },
     {
@@ -75,7 +97,7 @@
     {
       "selector": "#scroll-paginas",
       "titulo": "Cambiar una nota",
-      "texto": "Pincha sobre cualquier nombre para abrir el selector: elige la nota, la alteración y el tamaño, y acepta. También puedes arrastrar la etiqueta a donde necesites.",
+      "texto": "Pincha sobre cualquier nombre o número para abrir el selector: elige la nota, la alteración y el tamaño, y acepta. Con «Números» la posición se pone sola según la nota. También puedes arrastrar la etiqueta a donde necesites.",
       "pose": "partitura"
     },
     {
@@ -87,6 +109,11 @@
       "selector": "#barra-herramientas",
       "titulo": "Zoom",
       "texto": "Usa los botones − y + (o Ctrl+rueda del ratón) para acercar o alejar la partitura. El zoom no afecta al PDF final."
+    },
+    {
+      "selector": "#estilo-revision",
+      "titulo": "Negrita y cursiva",
+      "texto": "Con N y K pones o quitas la negrita y la cursiva de todos los textos. El cambio se ve al momento en la partitura."
     },
     {
       "selector": "#btn-confirmar",

@@ -77,8 +77,8 @@
               <text x="9" y="30" font-size="6.5" stroke="none" fill="currentColor" font-family="serif">Do Re Mi</text>
             </svg>
           </div>
-          <div class="tarjeta-funcion-titulo">Poner nombres a las notas</div>
-          <div class="tarjeta-funcion-desc">Superpone los nombres (Do, Re, Mi…) sobre el PDF original de la partitura</div>
+          <div class="tarjeta-funcion-titulo">Poner nombres o números a las notas</div>
+          <div class="tarjeta-funcion-desc">Superpone los nombres (Do, Re, Mi…) o las posiciones de pistones sobre el PDF original de la partitura</div>
         </button>
 
         <button class="tarjeta-funcion" id="btn-funcion-empalme" type="button">
@@ -121,6 +121,43 @@
 
         <!-- Estado: zona de carga (inicial) -->
         <div id="estado-carga">
+          <div class="opciones-escritura" id="opciones-escritura">
+            <div class="opcion-fila">
+              <span class="opcion-label" id="lbl-modo">Qué escribir</span>
+              <div class="segmentado" id="modo-escritura" role="radiogroup" aria-labelledby="lbl-modo">
+                <button type="button" class="segmento activo" data-modo="notas" role="radio" aria-checked="true">
+                  Notas <span class="segmento-ej">Do Re Mi</span>
+                </button>
+                <button type="button" class="segmento" data-modo="numeros" role="radio" aria-checked="false">
+                  Números <span class="segmento-ej">1/3 · x · 0</span>
+                </button>
+              </div>
+            </div>
+            <div class="opcion-fila" id="fila-instrumento" hidden>
+              <label class="opcion-label" for="sel-instrumento">Instrumento</label>
+              <select id="sel-instrumento" class="selector-instrumento-select">
+                <option value="tuba">Tuba</option>
+                <option value="bombardino4">Bombardino 4 pistones</option>
+                <option value="bombardino3">Bombardino 3 pistones</option>
+                <option value="trombon">Trombón de pistones</option>
+              </select>
+              <button class="enlace-neutro" id="btn-config-posiciones" type="button">
+                Configurar posiciones
+              </button>
+            </div>
+            <div class="opcion-fila" id="fila-estilo">
+              <span class="opcion-label" id="lbl-estilo">Estilo</span>
+              <div class="grupo-estilo" role="group" aria-labelledby="lbl-estilo">
+                <button type="button" class="btn-estilo" data-estilo="negrita" aria-pressed="false" title="Negrita">
+                  <b>N</b>
+                </button>
+                <button type="button" class="btn-estilo" data-estilo="cursiva" aria-pressed="false" title="Cursiva">
+                  <i>K</i>
+                </button>
+              </div>
+              <span class="muestra-estilo" id="muestra-estilo" aria-hidden="true">Mib</span>
+            </div>
+          </div>
           <div id="zona-carga" class="zona-carga" role="button" tabindex="0"
                aria-label="Zona de arrastre de archivos PDF">
             <svg class="icono-partitura" viewBox="0 0 48 48" fill="none"
@@ -184,6 +221,15 @@
         <button class="btn-secundario" id="zoom-ajustar" style="font-size:0.76rem;padding:0.35rem 0.75rem">
           Ajustar
         </button>
+        <div class="separador-v"></div>
+        <div class="grupo-estilo" id="estilo-revision" role="group" aria-label="Estilo del texto">
+          <button type="button" class="btn-estilo" data-estilo="negrita" aria-pressed="false" title="Negrita">
+            <b>N</b>
+          </button>
+          <button type="button" class="btn-estilo" data-estilo="cursiva" aria-pressed="false" title="Cursiva">
+            <i>K</i>
+          </button>
+        </div>
         <div class="separador-v"></div>
         <span class="barra-ayuda-teclado" title="N/P o Tab/Shift+Tab: siguiente/anterior · Flechas: mover nota · Ctrl+Z: deshacer">⌨ N/P · ↑↓←→</span>
       </div>
@@ -425,6 +471,40 @@
     <div class="modal-btns">
       <button class="btn-secundario" id="modal-cancelar">Cancelar</button>
       <button class="btn-primario" id="modal-continuar">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CONFIGURACIÓN DE POSICIONES DE PISTONES
+     ============================================================ -->
+<div id="modal-posiciones" class="modal-fondo" role="dialog"
+     aria-label="Configurar posiciones de pistones" aria-modal="true">
+  <div class="modal-contenido modal-posiciones">
+    <div class="modal-titulo">Posiciones de pistones</div>
+    <div class="pos-cabecera">
+      <label class="pos-campo">
+        <span>Instrumento</span>
+        <select id="pos-instrumento" class="selector-instrumento-select"></select>
+      </label>
+      <label class="pos-campo pos-campo-simbolo">
+        <span>«1/2» se escribe</span>
+        <input type="text" id="pos-simbolo" class="pos-input" maxlength="6">
+      </label>
+    </div>
+    <p class="pos-ayuda">
+      Escribe los pistones separados por «/» (por ejemplo 1/3 o 1/2/3) y 0 para la nota al aire.
+      Si dejas una nota vacía, no se escribe nada.
+    </p>
+    <div class="pos-lista-cabecera" aria-hidden="true">
+      <span>Nota</span><span>Pistones</span><span>Se escribe</span>
+    </div>
+    <div class="pos-lista" id="pos-lista"></div>
+    <div class="modal-btns pos-btns">
+      <button class="enlace-neutro" id="pos-restablecer" type="button">Restablecer este instrumento</button>
+      <span class="pos-espacio"></span>
+      <button class="btn-secundario" id="pos-cancelar" type="button">Cancelar</button>
+      <button class="btn-primario" id="pos-guardar" type="button">Guardar</button>
     </div>
   </div>
 </div>

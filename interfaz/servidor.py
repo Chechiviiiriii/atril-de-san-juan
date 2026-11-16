@@ -72,7 +72,7 @@ try:
     from app import NOMBRE_APP as _NOMBRE_APP, VERSION as _VERSION, URL_REPO as _URL_REPO
 except Exception:
     _NOMBRE_APP = "Atril de San Juan"
-    _VERSION    = "0.1.0"
+    _VERSION    = "0.2.0"
     _URL_REPO   = "https://github.com/Chechiviiiriii/atril-de-san-juan"
 
 # ---------------------------------------------------------------------------
@@ -92,6 +92,12 @@ class _Trabajo:
         self.pdf_original: Optional[Path] = None   # ruta al PDF en el dir temporal
         self.pdf_final: Optional[Path] = None      # ruta al PDF final con nombres
         self.nombre_archivo: Optional[str] = None
+        # Instrumento para escribir posiciones de pistones (None = nombres de notas)
+        self.instrumento: Optional[str] = None
+        self.tabla_posiciones: Optional[dict[int, str]] = None
+        # Estilo de los textos escritos
+        self.negrita: bool = False
+        self.cursiva: bool = False
         self._tmpdir = tempfile.TemporaryDirectory()
         self.directorio = Path(self._tmpdir.name)
 
@@ -208,6 +214,29 @@ def limpiar_todos() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Estilo de los textos (negrita / cursiva)
+# ---------------------------------------------------------------------------
+
+def _estilo_de_cabecera(valor: Optional[str]) -> tuple[bool, bool]:
+    """«negrita,cursiva» → (True, True)."""
+    partes = {p.strip().lower() for p in (valor or "").split(",")}
+    return "negrita" in partes, "cursiva" in partes
+
+
+def _actualizar_estilo(trabajo: "_Trabajo", datos: dict) -> None:
+    """Cambia el estilo del trabajo si la petición trae ``estilo``."""
+    estilo = datos.get("estilo")
+    if isinstance(estilo, dict):
+        trabajo.negrita = bool(estilo.get("negrita"))
+        trabajo.cursiva = bool(estilo.get("cursiva"))
+
+
+def _aplicar_estilo(trabajo: "_Trabajo", analisis) -> None:
+    from atril.superponer import fuente_de_estilo
+    analisis.fuente = fuente_de_estilo(trabajo.negrita, trabajo.cursiva)
+
+
+# ---------------------------------------------------------------------------
 # Pipeline de procesamiento (función de módulo patcheable en tests)
 # ---------------------------------------------------------------------------
 
@@ -268,6 +297,9 @@ def _procesar_hilo(trabajo: _Trabajo, mxl_precargado: Optional[Path] = None) -> 
 
         # --- Paso 4: calcular posiciones ---
         trabajo.fase = "Colocando nombres…"
+        from atril.posiciones import aplicar_posiciones
+        aplicar_posiciones(analisis, trabajo.tabla_posiciones)
+        _aplicar_estilo(trabajo, analisis)
         colocar_nombres(analisis)
 
         # --- Paso 5: pre-renderizar páginas como PNG ---
@@ -290,6 +322,16 @@ def _procesar_hilo(trabajo: _Trabajo, mxl_precargado: Optional[Path] = None) -> 
         resultado = analisis.a_dict()
         resultado["paginas_info"] = paginas_info
         resultado["nombre_archivo"] = trabajo.nombre_archivo
+        resultado["estilo"] = {"negrita": trabajo.negrita, "cursiva": trabajo.cursiva}
+        if trabajo.tabla_posiciones is not None:
+            from atril.posiciones import INSTRUMENTOS
+            resultado["posiciones"] = {
+                "instrumento": trabajo.instrumento,
+                "nombre": INSTRUMENTOS[trabajo.instrumento][0],
+                "tabla": {str(k): v for k, v in trabajo.tabla_posiciones.items()},
+            }
+        else:
+            resultado["posiciones"] = None
         notas = analisis.notas
         resultado["total"] = len(notas)
         resultado["dudosas"] = sum(1 for n in notas if n.estado in ("dudosa", "deducida"))
@@ -351,7 +393,7 @@ class _Manejador(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Nombre-Archivo")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Nombre-Archivo, X-Instrumento, X-Estilo")
         self.end_headers()
 
     def do_GET(self) -> None:
@@ -388,6 +430,25 @@ class _Manejador(BaseHTTPRequestHandler):
             self._json(200, _leer_preferencias())
             return
 
+        # API configuración de posiciones de pistones
+        if ruta == "/api/posiciones":
+            from atril.posiciones import describir_configuracion
+            prefs = _leer_preferencias()
+            datos = describir_configuracion(prefs.get("posiciones"))
+            datos["instrumento"] = prefs.get("instrumento") or ""
+            # Antes de los botones Notas/Números el modo se deducía del instrumento
+            modo = prefs.get("modo")
+            if modo not in ("notas", "numeros"):
+                modo = "numeros" if datos["instrumento"] else "notas"
+            datos["modo"] = modo
+            estilo = prefs.get("estilo") if isinstance(prefs.get("estilo"), dict) else {}
+            datos["estilo"] = {
+                "negrita": bool(estilo.get("negrita")),
+                "cursiva": bool(estilo.get("cursiva")),
+            }
+            self._json(200, datos)
+            return
+
         # API REST — trabajos de nombres
         if ruta.startswith("/api/trabajos"):
             sub = ruta[len("/api/trabajos"):].lstrip("/")
@@ -407,6 +468,10 @@ class _Manejador(BaseHTTPRequestHandler):
 
         if ruta == "/api/preferencias":
             self._api_guardar_preferencias()
+            return
+
+        if ruta == "/api/posiciones":
+            self._api_guardar_posiciones()
             return
 
         if ruta == "/api/trabajos":
@@ -462,7 +527,9 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         if datos.get("reiniciar"):
-            _guardar_preferencias({"tutoriales_vistos": []})
+            prefs = _leer_preferencias()
+            prefs["tutoriales_vistos"] = []     # conserva instrumento y posiciones
+            _guardar_preferencias(prefs)
             self._json(200, {"ok": True, "reiniciado": True})
             return
 
@@ -482,6 +549,58 @@ class _Manejador(BaseHTTPRequestHandler):
             self._error(500, f"Error al guardar preferencias: {exc}")
             return
 
+        self._json(200, {"ok": True})
+
+    # ------------------------------------------------------------------
+    # POST /api/posiciones
+    # ------------------------------------------------------------------
+
+    def _api_guardar_posiciones(self) -> None:
+        """Guarda el instrumento elegido y/o las tablas de posiciones."""
+        longitud = int(self.headers.get("Content-Length", 0))
+        cuerpo = self.rfile.read(longitud)
+        try:
+            datos = json.loads(cuerpo.decode("utf-8")) if cuerpo else {}
+        except Exception:
+            self._error(400, "JSON inválido.")
+            return
+        if not isinstance(datos, dict):
+            self._error(400, "JSON inválido.")
+            return
+
+        from atril.posiciones import INSTRUMENTOS, normalizar_configuracion
+
+        prefs = _leer_preferencias()
+        if "instrumento" in datos:
+            inst = datos.get("instrumento") or ""
+            if inst and inst not in INSTRUMENTOS:
+                self._error(400, f"Instrumento desconocido: {inst}")
+                return
+            prefs["instrumento"] = inst
+        if "modo" in datos:
+            if datos["modo"] not in ("notas", "numeros"):
+                self._error(400, "Modo desconocido.")
+                return
+            prefs["modo"] = datos["modo"]
+        if isinstance(datos.get("estilo"), dict):
+            prefs["estilo"] = {
+                "negrita": bool(datos["estilo"].get("negrita")),
+                "cursiva": bool(datos["estilo"].get("cursiva")),
+            }
+        if "configuracion" in datos:
+            conf = datos.get("configuracion")
+            if conf is None:
+                prefs.pop("posiciones", None)     # volver a las tablas por defecto
+            elif isinstance(conf, dict):
+                prefs["posiciones"] = normalizar_configuracion(conf)
+            else:
+                self._error(400, "Configuración inválida.")
+                return
+        try:
+            _guardar_preferencias(prefs)
+        except Exception as exc:
+            self._error(500, f"Error al guardar preferencias: {exc}")
+            return
         self._json(200, {"ok": True})
 
     # ------------------------------------------------------------------
@@ -509,8 +628,20 @@ class _Manejador(BaseHTTPRequestHandler):
             self._error(400, "El archivo no parece un PDF válido.")
             return
 
+        instrumento = (self.headers.get("X-Instrumento") or "").strip()
+        from atril.posiciones import INSTRUMENTOS, tabla_efectiva
+        if instrumento and instrumento not in INSTRUMENTOS:
+            self._error(400, f"Instrumento desconocido: {instrumento}")
+            return
+
         id_trabajo, trabajo = _crear_trabajo()
         trabajo.nombre_archivo = nombre
+        trabajo.negrita, trabajo.cursiva = _estilo_de_cabecera(self.headers.get("X-Estilo"))
+        if instrumento:
+            trabajo.instrumento = instrumento
+            trabajo.tabla_posiciones = tabla_efectiva(
+                _leer_preferencias().get("posiciones"), instrumento
+            )
 
         ruta_pdf = trabajo.directorio / nombre
         ruta_pdf.write_bytes(cuerpo)
@@ -621,6 +752,7 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         correcciones: dict = datos.get("correcciones", {})
+        _actualizar_estilo(trabajo, datos)
 
         try:
             from atril.superponer import colocar_nombres, escribir_pdf
@@ -653,11 +785,15 @@ class _Manejador(BaseHTTPRequestHandler):
                             nota.tam = float(corr["tam"])
 
             # Recalcular posiciones respetando notas fijas
+            from atril.posiciones import aplicar_posiciones
+            aplicar_posiciones(analisis, trabajo.tabla_posiciones)
+            _aplicar_estilo(trabajo, analisis)
             colocar_nombres(analisis)
 
             # Escribir PDF final (todas las notas en negro)
             stem = Path(trabajo.nombre_archivo).stem
-            nombre_salida = f"{stem}_notas.pdf"
+            sufijo = "_pistones" if trabajo.tabla_posiciones is not None else "_notas"
+            nombre_salida = f"{stem}{sufijo}.pdf"
             ruta_salida = trabajo.directorio / nombre_salida
             escribir_pdf(analisis, ruta_salida, color_dudosas=False)
 
@@ -695,6 +831,7 @@ class _Manejador(BaseHTTPRequestHandler):
             return
 
         correcciones: dict = datos.get("correcciones", {})
+        _actualizar_estilo(trabajo, datos)
 
         try:
             from atril.superponer import colocar_nombres
@@ -727,6 +864,9 @@ class _Manejador(BaseHTTPRequestHandler):
                         nota.fija = False
 
             # Recalcular posiciones
+            from atril.posiciones import aplicar_posiciones
+            aplicar_posiciones(analisis, trabajo.tabla_posiciones)
+            _aplicar_estilo(trabajo, analisis)
             colocar_nombres(analisis)
 
             # Devolver posiciones de todas las notas
@@ -737,6 +877,7 @@ class _Manejador(BaseHTTPRequestHandler):
                     "base": n.base,
                     "tam": n.tam,
                     "sin_hueco": n.sin_hueco,
+                    "impreso": n.impreso,
                 }
                 for n in analisis.notas
                 if n.x is not None

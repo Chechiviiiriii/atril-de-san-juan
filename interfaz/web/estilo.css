@@ -1434,3 +1434,216 @@ input:focus-visible,
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ============================================================
+   POSICIONES DE PISTONES
+   ============================================================ */
+
+/* Opciones de escritura en la pantalla de subir */
+.opciones-escritura {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 1rem;
+}
+.opcion-fila {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+.opcion-fila[hidden] { display: none; }
+.opcion-label {
+    flex: 0 0 6.5rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--texto-2);
+}
+.segmentado {
+    display: inline-flex;
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio-sm);
+    overflow: hidden;
+    flex: 1 1 14rem;
+}
+.segmento {
+    flex: 1;
+    background: transparent;
+    color: var(--texto-2);
+    border: none;
+    padding: 0.5rem 0.8rem;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    transition: background 150ms, color 150ms;
+}
+.segmento + .segmento { border-left: 1px solid var(--borde-fuerte); }
+.segmento:hover { background: rgba(255,255,255,0.06); }
+.segmento.activo {
+    background: var(--primario);
+    color: var(--primario-texto);
+}
+.segmento-ej {
+    font-family: var(--fuente-nota);
+    font-size: 0.78rem;
+    font-weight: 400;
+    opacity: 0.75;
+}
+.segmento:focus-visible,
+.btn-estilo:focus-visible {
+    outline: 2px solid var(--azul);
+    outline-offset: -2px;
+}
+.grupo-estilo {
+    display: inline-flex;
+    gap: 0.35rem;
+}
+.btn-estilo {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radio-sm);
+    border: 1px solid var(--borde-fuerte);
+    background: transparent;
+    color: var(--texto-2);
+    font-family: var(--fuente-nota);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 150ms, color 150ms;
+}
+.btn-estilo:hover { background: rgba(255,255,255,0.08); }
+.btn-estilo.activo {
+    background: var(--primario);
+    color: var(--primario-texto);
+    border-color: var(--primario);
+}
+.muestra-estilo {
+    font-family: var(--fuente-nota);
+    font-size: 1.15rem;
+    color: var(--texto);
+    padding: 0 0.4rem;
+}
+
+/* Negrita / cursiva en la vista previa de la revisión */
+.texto-negrita .nota-nombre { font-weight: 700; }
+.texto-cursiva .nota-nombre { font-style: italic; }
+
+.selector-instrumento-select {
+    flex: 1 1 14rem;
+    min-width: 0;
+    background: var(--fondo-card-alt);
+    color: var(--texto);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio-sm);
+    padding: 0.45rem 0.6rem;
+    font: inherit;
+    font-size: 0.88rem;
+}
+.selector-instrumento-select:focus-visible,
+.pos-input:focus-visible {
+    outline: 2px solid var(--azul);
+    outline-offset: 1px;
+}
+.selector-instrumento-select option,
+.selector-instrumento-select optgroup {
+    background: var(--fondo-card);
+    color: var(--texto);
+}
+
+/* Nota sin posición en la tabla: visible en la revisión, no se escribe en el PDF */
+.nota-nombre.sin-posicion {
+    color: #8a8a8a;
+    font-style: italic;
+    opacity: 0.75;
+}
+
+/* Ventana de configuración */
+.modal-posiciones {
+    max-width: 480px;
+    max-height: 90vh;
+    gap: 0.8rem;
+    overflow: hidden;
+}
+.pos-campo .selector-instrumento-select { flex: none; }
+.pos-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.pos-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex: 1 1 12rem;
+    font-size: 0.78rem;
+    color: var(--texto-2);
+}
+.pos-campo-simbolo { flex: 0 0 8rem; }
+.pos-ayuda {
+    font-size: 0.8rem;
+    color: var(--texto-3);
+    line-height: 1.5;
+}
+.pos-lista-cabecera,
+.pos-fila {
+    display: grid;
+    grid-template-columns: 1fr 6.5rem 6rem;
+    align-items: center;
+    gap: 0.6rem;
+}
+.pos-lista-cabecera {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+    padding: 0 0.6rem;
+}
+.pos-lista {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+}
+.pos-fila {
+    padding: 0.3rem 0.6rem;
+    border-bottom: 1px solid var(--borde);
+}
+.pos-fila:last-child { border-bottom: none; }
+.pos-fila.modificada .pos-etiqueta::after {
+    content: ' •';
+    color: var(--amber);
+}
+.pos-etiqueta {
+    font-size: 0.86rem;
+    color: var(--texto);
+}
+.pos-input {
+    width: 100%;
+    background: var(--fondo-card-alt);
+    color: var(--texto);
+    border: 1px solid var(--borde-fuerte);
+    border-radius: 6px;
+    padding: 0.3rem 0.45rem;
+    font: inherit;
+    font-size: 0.88rem;
+}
+.pos-resultado {
+    font-family: var(--fuente-nota);
+    font-size: 1rem;
+    color: var(--texto);
+}
+.pos-resultado.vacio {
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.75rem;
+    color: var(--texto-3);
+}
+.pos-btns { align-items: center; }
+.pos-espacio { flex: 1; }

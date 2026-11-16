@@ -68,6 +68,19 @@ COLOR_DEDUCIDA: tuple[float, float, float] = (0.75, 0.0, 0.0)
 
 FUENTE_NOMBRE: str = "tiro"
 
+# Times de PyMuPDF (base 14) según el estilo elegido: (negrita, cursiva) → fuente
+_FUENTES_ESTILO: dict[tuple[bool, bool], str] = {
+    (False, False): "tiro",
+    (True, False): "tibo",
+    (False, True): "tiit",
+    (True, True): "tibi",
+}
+
+
+def fuente_de_estilo(negrita: bool = False, cursiva: bool = False) -> str:
+    """Nombre de la fuente Times para escribir nombres o posiciones con ese estilo."""
+    return _FUENTES_ESTILO[(bool(negrita), bool(cursiva))]
+
 # Caracteres de cabeza en fuentes musicales clásicas
 _CABEZAS_CLASICAS: frozenset[str] = frozenset("œ˙w")
 
@@ -78,6 +91,7 @@ _CABEZAS_SMUFL: frozenset[int] = frozenset(range(0xE0A0, 0xE0A5))
 _PALABRAS_MUSICA: tuple[str, ...] = (
     "opus", "sibelius", "petrucci", "maestro", "engraver",
     "helsinki", "reprise", "inkpen", "jazz", "broadway", "sonata",
+    "anastasia",
 )
 
 # Fuentes SMuFL modernas
@@ -156,6 +170,13 @@ class NotaColocada:
     sin_hueco: bool = False
     fija: bool = False                           # True si el usuario fijó la posición manualmente
     acorde: Optional[int] = None                 # id común para todas las cabezas del mismo acorde (None si es nota suelta)
+    octava: Optional[int] = None                 # octava de la letra (Do4 = octava 4); None si no se sabe
+    impreso: Optional[str] = None                # texto que se escribe si no es el nombre (posiciones); "" = nada
+
+    @property
+    def visible(self) -> str:
+        """Texto que se coloca y se escribe en el PDF."""
+        return self.texto if self.impreso is None else self.impreso
 
     def a_dict(self) -> dict:
         """Serializa a diccionario JSON-compatible."""
@@ -174,6 +195,8 @@ class NotaColocada:
             "sin_hueco": self.sin_hueco,
             "fija": self.fija,
             "acorde": self.acorde,
+            "octava": self.octava,
+            "impreso": self.impreso,
         }
 
 
@@ -187,6 +210,8 @@ class Analisis:
     avisos: list[str]                             # armaduras que no coinciden, etc.
     # Campos internos para colocar_nombres y escribir_pdf
     _pentagramas: list[Pentagrama] = field(default_factory=list, repr=False)
+    # Fuente de los textos escritos (ver fuente_de_estilo): negrita y/o cursiva
+    fuente: str = FUENTE_NOMBRE
 
     def a_dict(self) -> dict:
         """Serializa a diccionario JSON-compatible."""
@@ -224,6 +249,32 @@ def _es_fuente_musica_clasica(fontname: str) -> bool:
     if "text" in base:
         return False
     return any(k in base for k in _PALABRAS_MUSICA)
+
+
+def _normalizar_codepoint(codepoint: int) -> int:
+    """Pasa a Unicode normal los glifos de fuente de símbolos en el área privada.
+
+    Algunos PDF (p. ej. impresos con PDFCreator/Ghostscript) codifican la fuente
+    musical como fuente de símbolos: el byte del glifo aparece en U+F020–U+F0FF
+    (``0xF0CF`` en vez de ``œ``). El byte original es la codificación Mac Roman
+    de las fuentes tipo Sonata/Opus.
+    """
+    if 0xF020 <= codepoint <= 0xF0FF:
+        try:
+            return ord(bytes([codepoint - 0xF000]).decode("mac_roman"))
+        except (UnicodeDecodeError, TypeError):
+            return codepoint
+    return codepoint
+
+
+def _texttrace(page: pymupdf.Page) -> list[dict]:
+    """``page.get_texttrace()`` con los códigos de glifo normalizados."""
+    spans = page.get_texttrace()
+    for sp in spans:
+        sp["chars"] = [
+            (_normalizar_codepoint(ch[0]),) + tuple(ch[1:]) for ch in sp["chars"]
+        ]
+    return spans
 
 
 def _es_cabeza_char(codepoint: int, fontname: str) -> bool:
@@ -273,7 +324,10 @@ def _agrupar_lineas_equiespaciadas(ys: list[float]) -> list[list[float]]:
                 continue
             candidato = [ys[i]]
             for k in range(1, 5):
-                objetivo = ys[i] + k * espacio
+                # Desde la línea anterior, no desde la primera: algunos PDF (Ghostscript)
+                # redondean las alturas y el espaciado va de 3,8 a 4,0 pt; medir desde la
+                # primera acumularía el error hasta salirse de la tolerancia.
+                objetivo = candidato[-1] + espacio
                 cercana = min(ys, key=lambda y: abs(y - objetivo))
                 if abs(cercana - objetivo) > TOLERANCIA_LINEA:
                     break
@@ -322,6 +376,8 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
     )
 
     grupos = _agrupar_lineas_equiespaciadas(ys)
+    if not grupos:
+        return _pentagramas_de_glifos(page, num_pagina)
 
     resultado: list[Pentagrama] = []
     for g in grupos:
@@ -335,6 +391,65 @@ def detectar_pentagramas(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama
             x1=max(x1s),
         ))
     return resultado
+
+
+GLIFO_PENTAGRAMA_CLASICO = "="   # trozo de pentagrama de 5 líneas en fuentes tipo Sonata
+
+
+def _pentagramas_de_glifos(page: pymupdf.Page, num_pagina: int) -> list[Pentagrama]:
+    """Pentagramas escritos con la fuente musical en vez de con líneas (p. ej. Finale).
+
+    En las fuentes tipo Sonata el glifo «=» es un trozo de pentagrama: su origen
+    está en la 5.ª línea (la de abajo) y el espacio entre líneas es tamaño / 4.
+    """
+    trozos: dict[float, list[float]] = {}           # y de la 5.ª línea → [x0, x1, tamaño]
+    for sp in _texttrace(page):
+        if not _es_fuente_musica_clasica(sp["font"]):
+            continue
+        for ch in sp["chars"]:
+            if chr(ch[0]) != GLIFO_PENTAGRAMA_CLASICO:
+                continue
+            y = round(ch[2][1], 1)
+            clave = next((k for k in trozos if abs(k - y) < 0.3), y)
+            x0, x1 = ch[3][0], ch[3][2]
+            t = trozos.setdefault(clave, [x0, x1, sp["size"]])
+            t[0] = min(t[0], x0)
+            t[1] = max(t[1], x1)
+
+    resultado = []
+    for y, (x0, x1, tam) in sorted(trozos.items()):
+        if x1 - x0 < page.rect.width * 0.35:
+            continue
+        resultado.append(Pentagrama(
+            pagina=num_pagina, arriba=y - tam, abajo=y, x0=x0, x1=x1,
+        ))
+    return resultado
+
+
+def pdf_derecho(pdf: Path) -> Path:
+    """Devuelve un PDF sin páginas giradas (``/Rotate``) con el mismo aspecto.
+
+    Algunos PDF guardan la partitura en vertical y la giran 90° al mostrarla; las
+    coordenadas internas salen entonces de lado. Si ninguna página está girada se
+    devuelve el mismo archivo; si no, una copia temporal enderezada.
+    """
+    import tempfile
+
+    pdf = Path(pdf)
+    doc = pymupdf.open(str(pdf))
+    try:
+        if all(page.rotation == 0 for page in doc):
+            return pdf
+        for page in doc:
+            if page.rotation:
+                page.remove_rotation()
+        fd, ruta = tempfile.mkstemp(prefix=pdf.stem[:40] + "_", suffix=".pdf")
+        import os
+        os.close(fd)
+        doc.save(ruta, garbage=3, deflate=True)
+        return Path(ruta)
+    finally:
+        doc.close()
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +570,7 @@ def detectar_cabezas(page: pymupdf.Page, pents_locales: list[Pentagrama]) -> lis
     adicionales = _lineas_adicionales(page, pents_locales)
     resultado: list[Cabeza] = []
 
-    for sp in page.get_texttrace():
+    for sp in _texttrace(page):
         fn = sp["font"]
         for ch in sp["chars"]:
             c = ch[0]
@@ -486,7 +601,7 @@ def detectar_cabezas(page: pymupdf.Page, pents_locales: list[Pentagrama]) -> lis
 def _extraer_chars_pagina(page: pymupdf.Page) -> list[tuple[int, str, float, float]]:
     """Devuelve lista de ``(codepoint, fontname_base, ox, oy)`` para todos los glifos."""
     resultado = []
-    for sp in page.get_texttrace():
+    for sp in _texttrace(page):
         fn_base = _nombre_fuente_base(sp["font"])
         for ch in sp["chars"]:
             ox, oy = ch[2]
@@ -973,7 +1088,7 @@ class _Prioritaria(_Tinta):
             if r1 > r0 and c1 > c0:
                 m[r0:r1, c0:c1] = True
 
-        for sp in page.get_texttrace():
+        for sp in _texttrace(page):
             fn = sp["font"]
             es_musical = (
                 _es_fuente_musica_clasica(fn) or _es_fuente_smufl(fn)
@@ -1081,17 +1196,18 @@ def _colocar_en_pagina(
     for nota in notas_pagina:
         if not nota.fija or nota.x is None or nota.base is None or nota.tam is None:
             continue
-        if not nota.texto:
+        texto = nota.visible
+        if not texto:
             continue
-        if nota.texto == _ML:
+        if texto == _ML:
             tam_ef = nota.tam * 1.8
-            w = fuente.text_length(nota.texto, fontsize=tam_ef)
+            w = fuente.text_length(texto, fontsize=tam_ef)
             r = pymupdf.Rect(
                 nota.x + w * 0.3, nota.base - tam_ef * 0.38,
                 nota.x + w * 0.7, nota.base - tam_ef * 0.2,
             )
         else:
-            w = fuente.text_length(nota.texto, fontsize=nota.tam)
+            w = fuente.text_length(texto, fontsize=nota.tam)
             r = pymupdf.Rect(
                 nota.x, nota.base - nota.tam * 0.70,
                 nota.x + w, nota.base + nota.tam * 0.05,
@@ -1100,7 +1216,7 @@ def _colocar_en_pagina(
 
     # Segundo paso: colocar notas no fijas
     for nota in notas_pagina:
-        if nota.texto is None:
+        if not nota.visible:
             continue
         if nota.fija:
             continue   # ya registrada; posición preservada
@@ -1142,7 +1258,7 @@ def _colocar_en_pagina(
                     coste = coste_base(base) + pen_t + pen_x
                     if mejor is not None and coste >= mejor[0]:
                         break
-                    r, x, tam_ef = _caja(nota.texto, xc + dx, base, tam0, fuente)
+                    r, x, tam_ef = _caja(nota.visible, xc + dx, base, tam0, fuente)
                     if tinta.pixeles(r, margen) == 0 and not _choca_con_colocadas(r, colocadas):
                         mejor = (coste, base, r, x, tam_ef)
                         break
@@ -1154,7 +1270,7 @@ def _colocar_en_pagina(
             for base in bases + extra_bases:
                 for dx, _ in DESPLAZAMIENTOS:
                     r, x, tam_ef = _caja(
-                        nota.texto, xc + dx, base, TAMANOS[-1][0], fuente
+                        nota.visible, xc + dx, base, TAMANOS[-1][0], fuente
                     )
                     pen_prio = PESO_PRIORITARIO * prioritaria.pixeles(r, 0.4)
                     pen_tinta = tinta.pixeles(r, 0)
@@ -1224,6 +1340,29 @@ def _nombre_por_paso(elemento, paso: int) -> Optional[str]:
     return nombre_nota(p) if p is not None else None
 
 
+def _octava_de_cabeza(
+    h: Cabeza, i: int, heads: list[Cabeza], ref: list[Optional[object]]
+) -> Optional[int]:
+    """Octava de la letra de la cabeza según la clave (de su nota o de la vecina más cercana)."""
+    from music21 import clef as m21clef
+    from music21 import pitch as m21pitch
+
+    elemento = ref[i]
+    if elemento is None:
+        vecinas = sorted(
+            (abs(k - i), k)
+            for k in range(len(heads))
+            if ref[k] is not None and heads[k].pent == h.pent
+        )
+        if not vecinas:
+            return None
+        elemento = ref[vecinas[0][1]]
+    cl = elemento.getContextByClass(m21clef.Clef) or m21clef.BassClef()
+    p = m21pitch.Pitch()
+    p.diatonicNoteNum = cl.lowestLine + h.paso
+    return p.octave
+
+
 def analizar(pdf: Path, partitura) -> Analisis:
     """Detecta pentagramas y cabezas, alinea con Audiveris e infiere nombres.
 
@@ -1232,7 +1371,7 @@ def analizar(pdf: Path, partitura) -> Analisis:
     """
     from .nombres import describir_cambios, MARCA_LIGADA
 
-    pdf = Path(pdf)
+    pdf = pdf_derecho(Path(pdf))
     doc = pymupdf.open(str(pdf))
 
     # Paso 1: detectar pentagramas y cabezas
@@ -1406,6 +1545,7 @@ def analizar(pdf: Path, partitura) -> Analisis:
                 compas_nota = _numero_compas(ref[vecinas[0][1]])
 
         notas_colocadas.append(NotaColocada(
+            octava=_octava_de_cabeza(h, i, heads, ref),
             id=i,
             pagina=pent.pagina,
             linea=h.pent + 1,
@@ -1574,7 +1714,7 @@ def colocar_nombres(analisis: Analisis) -> None:
     """
     doc = pymupdf.open(str(analisis.pdf))
     pents = analisis._pentagramas
-    fuente = pymupdf.Font(FUENTE_NOMBRE)
+    fuente = pymupdf.Font(analisis.fuente)
 
     # Resetear estado de colocación anterior (solo notas NO fijas)
     for nota in analisis.notas:
@@ -1604,7 +1744,7 @@ def escribir_pdf(
     """
     salida = Path(salida)
     doc = pymupdf.open(str(analisis.pdf))
-    fuente = pymupdf.Font(FUENTE_NOMBRE)
+    fuente = pymupdf.Font(analisis.fuente)
 
     for num, page in enumerate(doc):
         notas_pag = [n for n in analisis.notas if n.pagina == num]
@@ -1612,15 +1752,17 @@ def escribir_pdf(
         for nota in notas_pag:
             if nota.x is None or nota.base is None or nota.tam is None:
                 continue
+            if not nota.visible:
+                continue
             if color_dudosas and nota.estado in ("deducida", "dudosa"):
                 color = COLOR_DEDUCIDA
             else:
                 color = COLOR_NORMAL
             page.insert_text(
                 (nota.x, nota.base),
-                nota.texto,
+                nota.visible,
                 fontsize=nota.tam,
-                fontname=FUENTE_NOMBRE,
+                fontname=analisis.fuente,
                 color=color,
             )
 

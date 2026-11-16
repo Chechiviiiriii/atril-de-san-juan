@@ -242,7 +242,11 @@ function procesarArchivo(arch) {
 
     fetch('/api/trabajos', {
         method: 'POST',
-        headers: { 'X-Nombre-Archivo': encodeURIComponent(arch.name) },
+        headers: {
+            'X-Nombre-Archivo': encodeURIComponent(arch.name),
+            'X-Instrumento': instrumentoElegido(),
+            'X-Estilo': estiloElegido(),
+        },
         body: arch,
     })
     .then(r => r.json())
@@ -290,6 +294,11 @@ function consultarEstado() {
 
 function cargarRevision(res) {
     estado.resultado    = res;
+    if (res.estilo) {
+        escritura.negrita = !!res.estilo.negrita;
+        escritura.cursiva = !!res.estilo.cursiva;
+    }
+    pintarOpcionesEscritura();
     estado.correcciones = {};
     estado.historial    = [];
     estado.redoStack    = [];
@@ -458,11 +467,18 @@ function crearElementoNota(nota, pag) {
     el.dataset.xOrig       = nota.x;     // posición original para restablecer
     el.dataset.baseOrig    = nota.base;
     el.dataset.cabeza      = JSON.stringify(nota.cabeza);
-    el.dataset.texto       = nota.texto;
     el.dataset.textoOrig   = nota.texto;
     el.dataset.estado      = nota.estado;
     el.dataset.motivo      = nota.motivo || '';
-    el.textContent         = nota.texto;
+    el.dataset.octava      = nota.octava != null ? nota.octava : '';
+    // Sin posición en la tabla: el servidor no la coloca; se muestra bajo la cabeza
+    if (nota.x == null || nota.base == null || nota.tam == null) {
+        const [cx0, , , cy1] = nota.cabeza;
+        el.dataset.x = el.dataset.xOrig = cx0;
+        el.dataset.base = el.dataset.baseOrig = cy1 + 9;
+        el.dataset.tam = el.dataset.tamOrig = 7.5;
+    }
+    pintarTextoNota(el, nota.texto);
 
     // Gestión de eventos: distinguir clic de arrastre
     let pointerMovido = false;
@@ -779,8 +795,7 @@ function aplicarEstadoNota(id, estadoGuardado) {
 
     if ('texto' in estadoGuardado) {
         const texto = estadoGuardado.texto;
-        el.textContent = texto;
-        el.dataset.texto = texto;
+        pintarTextoNota(el, texto);
         el.classList.remove('estado-dudosa','estado-deducida');
         el.classList.add('estado-confirmada');
         actualizarItemDudosa(id, texto);
@@ -826,8 +841,7 @@ function aplicarCorreccionTexto(id, texto) {
     registrarHistorial(id, antes, despues);
 
     if (el) {
-        el.textContent = texto;
-        el.dataset.texto = texto;
+        pintarTextoNota(el, texto);
         el.classList.remove('estado-dudosa','estado-deducida');
         el.classList.add('estado-confirmada');
     }
@@ -970,9 +984,9 @@ function _textosAcorde(acordeId) {
     const ids = estado.acordeMap[acordeId] || [];
     return ids.map(nid => {
         const corr = estado.correcciones[nid];
-        if (corr && 'texto' in corr) return corr.texto;
+        if (corr && 'texto' in corr) return etiquetaLista(nid, corr.texto);
         const nota = notas.find(n => n.id === nid);
-        return nota ? nota.texto : '?';
+        return nota ? etiquetaLista(nid, nota.texto) : '?';
     });
 }
 
@@ -1008,7 +1022,7 @@ function crearItemDudosa(nota) {
 
     const notaEl = document.createElement('span');
     notaEl.className = 'item-dudosa-nota';
-    notaEl.textContent = nota.texto;
+    notaEl.textContent = etiquetaLista(nota.id, nota.texto);
     info.appendChild(notaEl);
 
     const motivo = document.createElement('div');
@@ -1080,7 +1094,7 @@ function actualizarItemDudosa(id, texto) {
         if (notaEl) notaEl.textContent = 'Acorde: ' + _textosAcorde(acordeId).join(' + ');
         li.classList.toggle('confirmada', _acordeConfirmado(id));
     } else {
-        li.querySelector('.item-dudosa-nota').textContent = texto;
+        li.querySelector('.item-dudosa-nota').textContent = etiquetaLista(id, texto);
         const corr = estado.correcciones[id];
         li.classList.toggle('confirmada', !!(corr && 'texto' in corr));
     }
@@ -1636,8 +1650,7 @@ function aplicarCorreccionAcorde() {
         const texto = despues.texto;
         const el = document.querySelector(`.nota-nombre[data-id="${nid}"]`);
         if (el) {
-            el.textContent = texto;
-            el.dataset.texto = texto;
+            pintarTextoNota(el, texto);
             el.classList.remove('estado-dudosa', 'estado-deducida');
             el.classList.add('estado-confirmada');
         }
@@ -1677,8 +1690,7 @@ function aceptarPropuestaAcorde() {
         const texto = despues.texto;
         const el = document.querySelector(`.nota-nombre[data-id="${nid}"]`);
         if (el) {
-            el.textContent = texto;
-            el.dataset.texto = texto;
+            pintarTextoNota(el, texto);
             el.classList.remove('estado-dudosa', 'estado-deducida');
             el.classList.add('estado-confirmada');
         }
@@ -1844,7 +1856,10 @@ function ejecutarConfirmar() {
     fetch(`/api/trabajos/${estado.idTrabajo}/confirmar`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ correcciones: corrParaEnviar }),
+        body:    JSON.stringify({
+            correcciones: corrParaEnviar,
+            estilo: { negrita: escritura.negrita, cursiva: escritura.cursiva },
+        }),
     })
     .then(r => r.json())
     .then(d => {
@@ -2190,6 +2205,337 @@ $('modal-miniatura').addEventListener('click', e => {
         $('modal-miniatura').classList.remove('visible');
     }
 });
+
+// ============================================================
+// Posiciones de pistones
+// ============================================================
+
+const _CLASE_PASO = { Do: 0, Re: 2, Mi: 4, Fa: 5, Sol: 7, La: 9, Si: 11 };
+const _ALTER_SUF  = { '': 0, '#': 1, '##': 2, 'b': -1, 'bb': -2 };
+
+/** Tabla {midi: texto} del trabajo en revisión, o null si se escriben nombres. */
+function tablaPosiciones() {
+    const p = estado.resultado && estado.resultado.posiciones;
+    return p ? p.tabla : null;
+}
+
+/** Altura MIDI (Do4 = 60) de un nombre en solfeo con la octava de su letra (igual que posiciones.py). */
+function midiDeNombre(texto, octava) {
+    if (octava == null || !texto) return null;
+    for (const paso of ['Sol', 'Do', 'Re', 'Mi', 'Fa', 'La', 'Si']) {
+        if (texto.startsWith(paso)) {
+            const alter = _ALTER_SUF[texto.slice(paso.length)];
+            if (alter === undefined) return null;
+            return (octava + 1) * 12 + _CLASE_PASO[paso] + alter;
+        }
+    }
+    return null;
+}
+
+/** Texto que irá en el PDF: el nombre, o la posición ('' = no se escribe nada). */
+function textoImpreso(texto, octava) {
+    const tabla = tablaPosiciones();
+    if (!tabla) return texto;
+    if (texto === '·') return '·';
+    const midi = midiDeNombre(texto, octava);
+    return (midi != null && tabla[String(midi)]) || '';
+}
+
+function _octavaDe(id) {
+    const el = document.querySelector(`.nota-nombre[data-id="${id}"]`);
+    if (!el || el.dataset.octava === '' || el.dataset.octava == null) return null;
+    return Number(el.dataset.octava);
+}
+
+/** Pinta en el overlay el texto de la nota (nombre o posición). */
+function pintarTextoNota(el, texto) {
+    el.dataset.texto = texto;
+    const tabla = tablaPosiciones();
+    if (!tabla) {
+        el.textContent = texto;
+        el.classList.remove('sin-posicion');
+        return;
+    }
+    const octava = el.dataset.octava === '' ? null : Number(el.dataset.octava);
+    const imp = textoImpreso(texto, octava);
+    el.classList.toggle('sin-posicion', imp === '');
+    // Sin posición se muestra el nombre en gris (no se escribe en el PDF)
+    el.textContent = imp === '' ? texto : imp;
+    el.title = imp === '' ? `${texto}: sin posición en la tabla (no se escribe)` : `${texto} → ${imp}`;
+}
+
+/** Etiqueta para la lista de dudosas: «Mib» o «Mib → 2/3». */
+function etiquetaLista(id, texto) {
+    if (!tablaPosiciones() || texto === '·' || texto === '?') return texto;
+    const imp = textoImpreso(texto, _octavaDe(id));
+    return `${texto} → ${imp || '(nada)'}`;
+}
+
+// ---- Opciones de escritura (pantalla de subir): Notas/Números, instrumento, estilo ----
+
+const posConf = {
+    datos: null,          // respuesta de GET /api/posiciones
+    edicion: null,        // {simbolo_12, tablas: {id: {midi: valor}}}
+    instrumentoVista: null,
+};
+
+const escritura = {
+    modo: 'notas',              // 'notas' | 'numeros'
+    instrumento: 'tuba',
+    negrita: false,
+    cursiva: false,
+};
+
+function guardarOpcionesEscritura(campos) {
+    fetch('/api/posiciones', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(campos),
+    }).catch(() => {});
+}
+
+/** Valor de la cabecera X-Instrumento: vacío si se escriben los nombres. */
+function instrumentoElegido() {
+    return escritura.modo === 'numeros' ? escritura.instrumento : '';
+}
+
+/** Valor de la cabecera X-Estilo. */
+function estiloElegido() {
+    return [escritura.negrita && 'negrita', escritura.cursiva && 'cursiva'].filter(Boolean).join(',');
+}
+
+function pintarOpcionesEscritura() {
+    document.querySelectorAll('#modo-escritura .segmento').forEach(b => {
+        const activo = b.dataset.modo === escritura.modo;
+        b.classList.toggle('activo', activo);
+        b.setAttribute('aria-checked', activo ? 'true' : 'false');
+    });
+    const fila = $('fila-instrumento');
+    if (fila) fila.hidden = escritura.modo !== 'numeros';
+    const sel = $('sel-instrumento');
+    if (sel) sel.value = escritura.instrumento;
+
+    document.querySelectorAll('.btn-estilo').forEach(b => {
+        const on = !!escritura[b.dataset.estilo];
+        b.classList.toggle('activo', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    const muestra = $('muestra-estilo');
+    if (muestra) {
+        muestra.textContent = escritura.modo === 'numeros' ? '1/3' : 'Mib';
+        muestra.style.fontWeight = escritura.negrita ? '700' : '400';
+        muestra.style.fontStyle  = escritura.cursiva ? 'italic' : 'normal';
+    }
+    aplicarEstiloRevision();
+}
+
+/** Negrita/cursiva en la vista previa de la revisión. */
+function aplicarEstiloRevision() {
+    const sp = $('scroll-paginas');
+    if (!sp) return;
+    sp.classList.toggle('texto-negrita', escritura.negrita);
+    sp.classList.toggle('texto-cursiva', escritura.cursiva);
+}
+
+async function cargarConfiguracionPosiciones() {
+    try {
+        const r = await fetch('/api/posiciones');
+        if (!r.ok) return;
+        posConf.datos = await r.json();
+        escritura.modo = posConf.datos.modo === 'numeros' ? 'numeros' : 'notas';
+        if (posConf.datos.instrumento) escritura.instrumento = posConf.datos.instrumento;
+        const est = posConf.datos.estilo || {};
+        escritura.negrita = !!est.negrita;
+        escritura.cursiva = !!est.cursiva;
+        pintarOpcionesEscritura();
+    } catch (_) { /* sin configuración: se usan nombres */ }
+}
+cargarConfiguracionPosiciones();
+
+document.querySelectorAll('#modo-escritura .segmento').forEach(b => {
+    b.addEventListener('click', () => {
+        escritura.modo = b.dataset.modo;
+        pintarOpcionesEscritura();
+        guardarOpcionesEscritura({ modo: escritura.modo, instrumento: escritura.instrumento });
+    });
+});
+
+if ($('sel-instrumento')) {
+    $('sel-instrumento').addEventListener('change', e => {
+        escritura.instrumento = e.target.value;
+        guardarOpcionesEscritura({ instrumento: escritura.instrumento });
+    });
+}
+
+document.querySelectorAll('.btn-estilo').forEach(b => {
+    b.addEventListener('click', () => {
+        const campo = b.dataset.estilo;
+        escritura[campo] = !escritura[campo];
+        pintarOpcionesEscritura();
+        guardarOpcionesEscritura({ estilo: { negrita: escritura.negrita, cursiva: escritura.cursiva } });
+        // En la revisión el ancho del texto cambia: recolocar con el nuevo estilo
+        if (estado.flujo === 'nombres' && estado.resultado && estado.idTrabajo) recolocarPorEstilo();
+    });
+});
+
+/** Recoloca todas las notas no movidas a mano tras cambiar negrita/cursiva. */
+function recolocarPorEstilo() {
+    const corr = {};
+    document.querySelectorAll('.nota-nombre').forEach(el => {
+        const id = el.dataset.id;
+        const c = Object.assign({}, estado.correcciones[id] || {});
+        if (!c.fija) { delete c.x; delete c.base; delete c.tam; }
+        corr[id] = c;
+    });
+    fetch(`/api/trabajos/${estado.idTrabajo}/recolocar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ correcciones: corr, estilo: { negrita: escritura.negrita, cursiva: escritura.cursiva } }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        (d.posiciones || []).forEach(pos => {
+            const c = estado.correcciones[pos.id];
+            if (c && c.fija) return;
+            const el = document.querySelector(`.nota-nombre[data-id="${pos.id}"]`);
+            if (!el || pos.x == null) return;
+            el.dataset.x = el.dataset.xOrig = pos.x;
+            el.dataset.base = el.dataset.baseOrig = pos.base;
+            el.dataset.tam = el.dataset.tamOrig = pos.tam;
+        });
+        reposicionarTodasLasNotas();
+    })
+    .catch(() => {});
+}
+
+// ---- Ventana de configuración ----
+
+function abrirConfigPosiciones() {
+    if (!posConf.datos) {
+        cargarConfiguracionPosiciones().then(() => { if (posConf.datos) abrirConfigPosiciones(); });
+        return;
+    }
+    const d = posConf.datos;
+    posConf.edicion = { simbolo_12: d.simbolo_12, tablas: {} };
+    d.instrumentos.forEach(inst => {
+        const t = {};
+        inst.filas.forEach(f => { if (f.valor) t[f.midi] = f.valor; });
+        posConf.edicion.tablas[inst.id] = t;
+    });
+
+    const sel = $('pos-instrumento');
+    sel.innerHTML = '';
+    d.instrumentos.forEach(inst => {
+        const op = document.createElement('option');
+        op.value = inst.id;
+        op.textContent = inst.nombre;
+        sel.appendChild(op);
+    });
+    posConf.instrumentoVista = escritura.instrumento || d.instrumentos[0].id;
+    sel.value = posConf.instrumentoVista;
+    $('pos-simbolo').value = posConf.edicion.simbolo_12;
+
+    renderizarFilasPosiciones();
+    $('modal-posiciones').classList.add('visible');
+}
+
+function _simboloActual() {
+    return $('pos-simbolo').value.trim();
+}
+
+function _textoFinalPos(valor) {
+    const v = (valor || '').trim();
+    return v.replace(/\s+/g, '') === '1/2' ? _simboloActual() : v;
+}
+
+function renderizarFilasPosiciones() {
+    const d = posConf.datos;
+    const inst = d.instrumentos.find(i => i.id === posConf.instrumentoVista);
+    const tabla = posConf.edicion.tablas[inst.id];
+    const lista = $('pos-lista');
+    lista.innerHTML = '';
+
+    inst.filas.forEach(f => {
+        const fila = document.createElement('div');
+        fila.className = 'pos-fila';
+
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'pos-etiqueta';
+        etiqueta.textContent = f.etiqueta;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'pos-input';
+        input.maxLength = 12;
+        input.value = tabla[f.midi] || '';
+        input.placeholder = '—';
+        input.setAttribute('aria-label', 'Pistones para ' + f.etiqueta);
+
+        const res = document.createElement('span');
+        res.className = 'pos-resultado';
+
+        const actualizar = () => {
+            const v = input.value.trim();
+            if (v) tabla[f.midi] = v; else delete tabla[f.midi];
+            const fin = _textoFinalPos(v);
+            res.textContent = fin || 'no se escribe';
+            res.classList.toggle('vacio', !fin);
+            fila.classList.toggle('modificada', v !== (f.defecto || ''));
+        };
+        input.addEventListener('input', actualizar);
+        actualizar();
+
+        fila.appendChild(etiqueta);
+        fila.appendChild(input);
+        fila.appendChild(res);
+        lista.appendChild(fila);
+    });
+}
+
+function cerrarConfigPosiciones() {
+    $('modal-posiciones').classList.remove('visible');
+}
+
+function guardarConfigPosiciones() {
+    const conf = {
+        simbolo_12: _simboloActual(),
+        tablas: posConf.edicion.tablas,
+    };
+    $('pos-guardar').disabled = true;
+    fetch('/api/posiciones', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ configuracion: conf }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) { alert('No se pudo guardar: ' + d.error); return; }
+        return cargarConfiguracionPosiciones().then(cerrarConfigPosiciones);
+    })
+    .catch(err => alert('No se pudo guardar: ' + err.message))
+    .finally(() => { $('pos-guardar').disabled = false; });
+}
+
+if ($('modal-posiciones')) {
+    $('btn-config-posiciones').addEventListener('click', abrirConfigPosiciones);
+    $('pos-instrumento').addEventListener('change', e => {
+        posConf.instrumentoVista = e.target.value;
+        renderizarFilasPosiciones();
+    });
+    $('pos-simbolo').addEventListener('input', renderizarFilasPosiciones);
+    $('pos-restablecer').addEventListener('click', () => {
+        const inst = posConf.datos.instrumentos.find(i => i.id === posConf.instrumentoVista);
+        const t = {};
+        inst.filas.forEach(f => { if (f.defecto) t[f.midi] = f.defecto; });
+        posConf.edicion.tablas[inst.id] = t;
+        renderizarFilasPosiciones();
+    });
+    $('pos-cancelar').addEventListener('click', cerrarConfigPosiciones);
+    $('pos-guardar').addEventListener('click', guardarConfigPosiciones);
+    $('modal-posiciones').addEventListener('click', e => {
+        if (e.target === $('modal-posiciones')) cerrarConfigPosiciones();
+    });
+}
 
 // ============================================================
 // Cierre del documento

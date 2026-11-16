@@ -48,6 +48,18 @@ internet, sin cuentas y sin coste.
 - **Revisión a mano**: clic en cualquier nombre para cambiarlo (`Cambiar nota`), arrastrarlo para
   moverlo, cambiar su tamaño (A−/A+, esquina azul o Ctrl + rueda), deshacer (Ctrl+Z) y rehacer
   (Ctrl+Y). Lo que se ve en pantalla es exactamente lo que sale en el PDF.
+- **Negrita y cursiva**: botones **N** y **K** al subir la partitura y en la revisión (el cambio
+  se ve al momento); valen para nombres y para números.
+- **Posiciones de pistones** (en vez de los nombres): en «Qué escribir» se pulsa **Números** y
+  se elige **Tuba**, **Bombardino 4 pistones**, **Bombardino 3 pistones** o
+  **Trombón de pistones**; debajo de
+  cada nota se escribe su posición con `/` (`1/3`, `1/2/3`, `0` al aire). La combinación
+  exacta `1/2` se escribe `x` (`1/2/3` no cambia). Trombón y bombardino de 3 comparten
+  tabla; el bombardino de 4 es la misma más el 4.º pistón (graves hasta Reb2); la tuba tiene
+  la suya (gráfico de tuba en Do sin 5.º pistón). Las ligaduras siguen igual (posición en la primera y `·`).
+  Solo se escribe lo que está en la tabla: una nota sin posición no lleva nada (en la revisión
+  se ve en gris). En **Configurar posiciones** se puede cambiar el texto de cada nota,
+  instrumento por instrumento, y el símbolo de `1/2`; se guarda para la próxima vez.
 
 ### 2. Empalmar marchas
 
@@ -68,7 +80,7 @@ internet, sin cuentas y sin coste.
 
 ## Instalación (músicos)
 
-1. Descargar `Instalar Atril de San Juan 0.1.0.exe`.
+1. Descargar `Instalar Atril de San Juan 0.2.0.exe`.
 2. Abrirlo. Si Windows muestra **«Windows protegió su PC»**, pulsar
    **«Más información» → «Ejecutar de todas formas»** (el programa está firmado por su autor,
    pero no por una entidad comercial; ver [Firma](#firma)).
@@ -162,6 +174,7 @@ atril/                        Motor
   nombres.py                  Nombres en solfeo, ligaduras, claves y armaduras
   omr.py                      Llamada a Audiveris (incluido o instalado)
   superponer.py               Lectura del PDF, alineación, dudosas y colocación de nombres
+  posiciones.py               Tablas de pistones por instrumento y regla de la «x»
   verificacion.py             Recuento de notas por línea PDF ↔ Audiveris
   empalme.py                  Unión de PDF
   render.py                   Modo antiguo: redibujar con MuseScore (opcional)
